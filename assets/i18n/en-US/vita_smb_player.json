@@ -1,0 +1,218 @@
+{
+  "app": {
+    "title": "SMB Player"
+  },
+  "login": {
+    "title": "Login"
+  },
+  "field": {
+    "server": "Server",
+    "share": "Share",
+    "path": "Path",
+    "user": "User",
+    "password": "Password",
+    "domain": "Domain",
+    "local_path": "Local Path",
+    "empty": "(empty)"
+  },
+  "ime": {
+    "edit": {
+      "fmt": "Edit %s"
+    }
+  },
+  "connect": {
+    "smb": "Connect to SMB",
+    "local": "Play local files",
+    "hidden": "Manage hidden items",
+    "smb_button": "SMB",
+    "local_button": "Local",
+    "hidden_button": "Hidden"
+  },
+  "footer": {
+    "connect": "UP/DOWN select   O edit   START connect   SELECT local   L hidden   X exit",
+    "browser": {
+      "smb": "UP/DOWN select   O play   SELECT hide   L hidden   SQUARE copy   TRIANGLE rescan   X exit",
+      "local": "UP/DOWN select   O play   SELECT hide   L hidden   TRIANGLE rescan   X exit"
+    },
+    "hidden": "UP/DOWN select   O unhide   X back"
+  },
+  "hint": {
+    "select": "Select",
+    "edit": "Edit",
+    "exit": "Exit",
+    "enter": "Enter",
+    "play": "Play",
+    "view": "View",
+    "hide": "Hide",
+    "hidden": "Hidden",
+    "copy": "Copy",
+    "rescan": "Rescan",
+    "back": "Back",
+    "unhide": "Unhide",
+    "move": "Move",
+    "zoom": "Zoom",
+    "reset": "Reset",
+    "rotate": "Rotate",
+    "prev_next": "Prev/Next",
+    "hud": "HUD"
+  },
+  "hidden": {
+    "title": "Hidden Items",
+    "count": {
+      "fmt": "%d hidden items"
+    },
+    "hint": "Press O to unhide. hidden.json is updated immediately.",
+    "empty": "No hidden items"
+  },
+  "browser": {
+    "empty": "No folders, videos, or images found",
+    "wait": "Please wait..."
+  },
+  "local": {
+    "prefix": {
+      "fmt": "Local: %s"
+    }
+  },
+  "share": {
+    "prefix": {
+      "fmt": "Share: //%s/%s/%s"
+    }
+  },
+  "runtime": {
+    "local": {
+      "fmt": "Local file   mpv API: %lu"
+    },
+    "smb": {
+      "fmt": "libsmb2: %s   mpv API: %lu"
+    },
+    "failed": "failed"
+  },
+  "scan": {
+    "idle": "Network not started",
+    "network_failed": "Vita network initialization failed",
+    "thread_failed": "Failed to create scan thread",
+    "smb": {
+      "start": "Starting SMB scan...",
+      "connecting": "Connecting to SMB share...",
+      "init_failed": "Failed to initialize libsmb2 context",
+      "connect_failed": {
+        "fmt": "Connect failed: %s"
+      },
+      "open_failed": {
+        "fmt": "Open dir '%s' failed: %s"
+      },
+      "reading": "Reading directory...",
+      "loaded": {
+        "fmt": "Loaded %d entries (%d hidden)"
+      }
+    },
+    "local": {
+      "start": "Starting local scan...",
+      "open_failed": {
+        "fmt": "Open local folder failed: 0x%08x"
+      },
+      "reading": "Reading local folder...",
+      "loaded": {
+        "fmt": "Loaded %d local entries (%d hidden)"
+      }
+    }
+  },
+  "player": {
+    "back": "X Back",
+    "rotate": {
+      "fmt": "△ Rotate %d°"
+    },
+    "loading": "Loading...",
+    "waiting": "Waiting for video...",
+    "playing": "Playing",
+    "loaded": "File loaded",
+    "ended": "Playback ended",
+    "stopped": "Playback stopped",
+    "paused": "Paused",
+    "resumed": "Playing",
+    "stopped_short": "Stopped",
+    "ready": "mpv ready",
+    "loadfile_sent": "loadfile sent",
+    "streaming": {
+      "fmt": "Streaming %s"
+    },
+    "dir_unavailable": "Press O to enter folders"
+  },
+  "image": {
+    "loading": "Loading image...",
+    "too_large": {
+      "fmt": "Image too large: %lu MB. Limit is 32 MB."
+    },
+    "open_failed": "Failed to open image",
+    "read_failed": "Failed to read image",
+    "decode_failed": "Failed to decode image"
+  },
+  "error": {
+    "resolution": {
+      "title": "Resolution unsupported",
+      "reason": {
+        "fmt": "Current video resolution: %dx%d. It exceeds the 1080p playback limit. Convert to 1920x1080 or 1080x1920 or below."
+      },
+      "hint": "For vertical video, keep the short side <= 1080 and long side <= 1920."
+    },
+    "convert": {
+      "hint": "Convert to H.264 8-bit + AAC stereo MP4 before playback."
+    },
+    "format": {
+      "title": "Format unsupported"
+    },
+    "codec": {
+      "title": "Codec unsupported",
+      "reason": "This file uses a format this Vita build cannot decode."
+    },
+    "container": {
+      "title": "Container unsupported",
+      "reason": "The file container could not be recognized."
+    },
+    "no_stream": "This file has no playable audio or video track.",
+    "unsupported": {
+      "video_audio": {
+        "fmt": "Current video codec: %s, audio codec: %s. This Vita build cannot play it."
+      },
+      "video": {
+        "fmt": "Current video codec: %s. This Vita build cannot play it."
+      },
+      "audio": {
+        "fmt": "Current audio codec: %s. This Vita build cannot play it."
+      }
+    }
+  },
+  "copy": {
+    "connecting": "Connecting for copy...",
+    "preparing": "Preparing copy...",
+    "running": "Copying...",
+    "complete": "Copy complete",
+    "init_failed": "Copy failed: libsmb2 init failed",
+    "oom": "Copy failed: out of memory",
+    "thread_failed": "Copy failed: thread create failed",
+    "connect_failed": {
+      "fmt": "Copy connect failed: %s"
+    },
+    "open_failed": {
+      "fmt": "Copy open failed: %s"
+    },
+    "create_failed": {
+      "fmt": "Copy create failed: 0x%08x"
+    },
+    "read_failed": {
+      "fmt": "Copy read failed: %s"
+    },
+    "write_failed": {
+      "fmt": "Copy write failed: 0x%08x"
+    },
+    "busy": {
+      "fmt": "Copying %d%%  %s"
+    },
+    "error": {
+      "fmt": "Copy failed: %s"
+    },
+    "done": {
+      "fmt": "Copy complete: %s"
+    }
+  }
+}

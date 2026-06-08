@@ -1,0 +1,5 @@
+build/
+releases/
+.git/
+.DS_Store
+

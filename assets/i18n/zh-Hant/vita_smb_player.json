@@ -1,0 +1,218 @@
+{
+  "app": {
+    "title": "SMB Player"
+  },
+  "login": {
+    "title": "登入"
+  },
+  "field": {
+    "server": "伺服器",
+    "share": "分享名稱",
+    "path": "路徑",
+    "user": "使用者",
+    "password": "密碼",
+    "domain": "網域",
+    "local_path": "本機路徑",
+    "empty": "(空白)"
+  },
+  "ime": {
+    "edit": {
+      "fmt": "編輯 %s"
+    }
+  },
+  "connect": {
+    "smb": "連線到 SMB",
+    "local": "播放本機檔案",
+    "hidden": "管理隱藏項目",
+    "smb_button": "連線 SMB",
+    "local_button": "本機",
+    "hidden_button": "隱藏項目"
+  },
+  "footer": {
+    "connect": "方向鍵選擇   ○ 編輯   START 連線   SELECT 本機   L 隱藏   × 退出",
+    "browser": {
+      "smb": "方向鍵選擇   ○ 播放/進入   SELECT 隱藏   L 隱藏項目   □ 複製   △ 重新整理   × 返回",
+      "local": "方向鍵選擇   ○ 播放/進入   SELECT 隱藏   L 隱藏項目   △ 重新整理   × 返回"
+    },
+    "hidden": "方向鍵選擇   ○ 取消隱藏   × 返回"
+  },
+  "hint": {
+    "select": "選擇",
+    "edit": "編輯",
+    "exit": "退出",
+    "enter": "進入",
+    "play": "播放",
+    "view": "檢視",
+    "hide": "隱藏",
+    "hidden": "隱藏項目",
+    "copy": "複製",
+    "rescan": "重新整理",
+    "back": "返回",
+    "unhide": "取消隱藏",
+    "move": "移動",
+    "zoom": "縮放",
+    "reset": "重置",
+    "rotate": "旋轉",
+    "prev_next": "上/下一張",
+    "hud": "HUD"
+  },
+  "hidden": {
+    "title": "隱藏項目",
+    "count": {
+      "fmt": "%d 個隱藏項目"
+    },
+    "hint": "按 ○ 取消隱藏，會立即更新 hidden.json",
+    "empty": "目前沒有隱藏項目"
+  },
+  "browser": {
+    "empty": "沒有找到資料夾、影片或圖片",
+    "wait": "請稍候..."
+  },
+  "local": {
+    "prefix": {
+      "fmt": "本機: %s"
+    }
+  },
+  "share": {
+    "prefix": {
+      "fmt": "分享: //%s/%s/%s"
+    }
+  },
+  "runtime": {
+    "local": {
+      "fmt": "本機檔案   mpv API: %lu"
+    },
+    "smb": {
+      "fmt": "libsmb2: %s   mpv API: %lu"
+    },
+    "failed": "失敗"
+  },
+  "scan": {
+    "idle": "網路尚未啟動",
+    "network_failed": "Vita 網路初始化失敗",
+    "thread_failed": "建立掃描執行緒失敗",
+    "smb": {
+      "start": "開始掃描 SMB...",
+      "connecting": "正在連線到 SMB 分享...",
+      "init_failed": "libsmb2 初始化失敗",
+      "connect_failed": {
+        "fmt": "連線失敗: %s"
+      },
+      "open_failed": {
+        "fmt": "開啟資料夾 '%s' 失敗: %s"
+      },
+      "reading": "正在讀取資料夾...",
+      "loaded": {
+        "fmt": "已載入 %d 個項目（略過 %d 個）"
+      }
+    },
+    "local": {
+      "start": "開始掃描本機資料夾...",
+      "open_failed": {
+        "fmt": "開啟本機資料夾失敗: 0x%08x"
+      },
+      "reading": "正在讀取本機資料夾...",
+      "loaded": {
+        "fmt": "已載入 %d 個本機項目（略過 %d 個）"
+      }
+    }
+  },
+  "player": {
+    "back": "× 返回",
+    "rotate": {
+      "fmt": "△ 旋轉 %d°"
+    },
+    "loading": "載入中…",
+    "waiting": "等待畫面…",
+    "playing": "播放中",
+    "loaded": "檔案已載入",
+    "ended": "播放結束",
+    "stopped": "播放已停止",
+    "paused": "已暫停",
+    "resumed": "播放中",
+    "stopped_short": "已停止",
+    "ready": "mpv 已就緒",
+    "loadfile_sent": "已送出播放請求",
+    "streaming": {
+      "fmt": "串流中 %s"
+    },
+    "dir_unavailable": "請按 ○ 進入資料夾"
+  },
+  "image": {
+    "loading": "圖片載入中…",
+    "too_large": {
+      "fmt": "圖片檔案太大：%lu MB，上限 32 MB。"
+    },
+    "open_failed": "圖片開啟失敗",
+    "read_failed": "圖片讀取失敗",
+    "decode_failed": "圖片格式無法解碼"
+  },
+  "error": {
+    "resolution": {
+      "title": "解析度不支援",
+      "reason": {
+        "fmt": "目前影片解析度：%dx%d，超過 1080p 播放上限。請轉成 1920x1080 或 1080x1920 以下再播放。"
+      },
+      "hint": "直式影片請維持短邊 1080、長邊 1920 以下。"
+    },
+    "convert": {
+      "hint": "建議轉成 H.264 8-bit + AAC stereo MP4 後播放。"
+    },
+    "format": {
+      "title": "格式不支援"
+    },
+    "codec": {
+      "title": "編碼不支援",
+      "reason": "此檔案使用目前 Vita 版本無法解碼的格式。"
+    },
+    "container": {
+      "title": "容器不支援",
+      "reason": "目前檔案容器無法辨識。"
+    },
+    "no_stream": "目前檔案沒有可播放的音訊或影片軌。",
+    "unsupported": {
+      "video_audio": {
+        "fmt": "目前影片格式：%s，音訊格式：%s，此 Vita 版本無法播放。"
+      },
+      "video": {
+        "fmt": "目前影片格式：%s，此 Vita 版本無法播放。"
+      },
+      "audio": {
+        "fmt": "目前音訊格式：%s，此 Vita 版本無法播放。"
+      }
+    }
+  },
+  "copy": {
+    "connecting": "準備複製連線...",
+    "preparing": "準備複製...",
+    "running": "複製中...",
+    "complete": "複製完成",
+    "init_failed": "複製失敗：libsmb2 初始化失敗",
+    "oom": "複製失敗：記憶體不足",
+    "thread_failed": "複製失敗：無法建立執行緒",
+    "connect_failed": {
+      "fmt": "複製連線失敗：%s"
+    },
+    "open_failed": {
+      "fmt": "開啟來源檔案失敗：%s"
+    },
+    "create_failed": {
+      "fmt": "建立本機檔案失敗：0x%08x"
+    },
+    "read_failed": {
+      "fmt": "讀取來源檔案失敗：%s"
+    },
+    "write_failed": {
+      "fmt": "寫入本機檔案失敗：0x%08x"
+    },
+    "busy": {
+      "fmt": "複製中 %d%%  %s"
+    },
+    "error": {
+      "fmt": "複製失敗：%s"
+    },
+    "done": {
+      "fmt": "複製完成：%s"
+    }
+  }
+}
