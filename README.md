@@ -23,7 +23,7 @@ PS Vita 用的 SMB / 本機媒體播放器。目標是用簡單的介面瀏覽 S
 第一版 VPK 會輸出在：
 
 ```text
-releases/vita_smb_player_v0.01.vpk
+releases/vita_smb_player_v0.02.vpk
 ```
 
 把 VPK 安裝到已可執行自製程式的 PS Vita 上即可啟動。
@@ -193,8 +193,8 @@ LIBSMB2_REF=libsmb2-6.2 ./scripts/build-builder-image.sh
 
 ```text
 build/vita/vita_smb_player.self
-build/vita/vita_smb_player_v0.01.vpk
-releases/vita_smb_player_v0.01.vpk
+build/vita/vita_smb_player_v0.02.vpk
+releases/vita_smb_player_v0.02.vpk
 ```
 
 可用環境變數覆蓋預設 SMB 設定：
