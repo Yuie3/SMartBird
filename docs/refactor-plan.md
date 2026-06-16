@@ -12,7 +12,7 @@
 
 ## 現況
 
-`src/vita/main.cpp` 原本約 4500 行；截至本文件最新更新，已降到約 630 行。仍包含：
+`src/vita/main.cpp` 原本約 4500 行；截至本文件最新更新，已降到約 20 行，只保留 Vita entry point 與主執行緒啟動。`src/vita/App.cpp` 目前約 600 行，仍包含：
 
 - Vita app 初始化與主迴圈
 - GXM / NanoVG 初始化與 rendering
@@ -176,10 +176,10 @@ src/vita/
 
 ### Phase 8：Application
 
-- 建立 `App` 類別。
-- 將初始化、主迴圈、shutdown 移到 `App.cpp`。
-- `main.cpp` 只保留 entry point。
-- 最終 build。
+- [x] 建立 `Application` 類別。
+- [x] 將初始化、主迴圈、shutdown 移到 `App.cpp`。
+- [x] `main.cpp` 只保留 entry point、heap/stack 設定與主執行緒啟動。
+- [x] 最終 build。
 
 ## 驗證規則
 

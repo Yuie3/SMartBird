@@ -33,6 +33,7 @@ if(BUILD_VITA_PLAYER)
     )
 
     add_executable(vita_smb_player
+        src/vita/App.cpp
         src/vita/main.cpp
         src/vita/Browser/BrowserActions.cpp
         src/vita/Browser/BrowserState.cpp
@@ -74,7 +75,7 @@ if(BUILD_VITA_PLAYER)
         STBI_NEON
     )
 
-    set_source_files_properties(src/vita/main.cpp PROPERTIES
+    set_source_files_properties(src/vita/App.cpp PROPERTIES
         COMPILE_DEFINITIONS "NANOVG_GXM_IMPLEMENTATION;NANOVG_GXM_UTILS_IMPLEMENTATION"
     )
 
