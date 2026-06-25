@@ -40,7 +40,7 @@ SMARTBIRD
 執行時資料會儲存在：
 
 ```text
-ux0:/data/vita-smb-player/
+ux0:/data/Smbird/
 ```
 
 主要設定檔：

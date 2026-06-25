@@ -47,6 +47,8 @@ void initConnectionDefaults() {
 
 namespace {
 
+constexpr const char* kConnectionConfigPath = "ux0:/data/Smbird/connection.txt";
+
 void applyConfigLine(const char* key, const char* value) {
     if (std::strcmp(key, "server") == 0) copyText(gConn.server, sizeof(gConn.server), value);
     else if (std::strcmp(key, "share") == 0) copyText(gConn.share, sizeof(gConn.share), value);
@@ -60,7 +62,7 @@ void applyConfigLine(const char* key, const char* value) {
 } // namespace
 
 void loadConnectionConfig() {
-    FILE* fp = std::fopen("ux0:/data/vita-smb-player/connection.txt", "r");
+    FILE* fp = std::fopen(kConnectionConfigPath, "r");
     if (!fp) return;
     char line[384];
     while (std::fgets(line, sizeof(line), fp)) {
@@ -75,7 +77,7 @@ void loadConnectionConfig() {
 }
 
 void saveConnectionConfig() {
-    FILE* fp = std::fopen("ux0:/data/vita-smb-player/connection.txt", "w");
+    FILE* fp = std::fopen(kConnectionConfigPath, "w");
     if (!fp) return;
     std::fprintf(fp, "server=%s\n", gConn.server);
     std::fprintf(fp, "share=%s\n", gConn.share);

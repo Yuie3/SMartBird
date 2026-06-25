@@ -12,6 +12,8 @@
 
 namespace {
 
+constexpr const char* kHiddenItemsPath = "ux0:/data/Smbird/hidden.json";
+
 bool appendHiddenItemLoaded(int source, const char* server, const char* share, const char* path, const char* name) {
     if (!name || !name[0] || gHiddenItemCount >= kMaxHiddenItems) return false;
     HiddenItem& item = gHiddenItems[gHiddenItemCount++];
@@ -199,7 +201,7 @@ void writeHiddenNameArray(FILE* fp, int source, const char* server, const char* 
 }
 
 void saveHiddenItems() {
-    FILE* fp = std::fopen("ux0:/data/vita-smb-player/hidden.json", "w");
+    FILE* fp = std::fopen(kHiddenItemsPath, "w");
     if (!fp) return;
 
     std::fputs("{\n  \"version\": 1,\n  \"smb\": {\n", fp);
@@ -264,7 +266,7 @@ void saveHiddenItems() {
 
 void loadHiddenItems() {
     gHiddenItemCount = 0;
-    FILE* fp = std::fopen("ux0:/data/vita-smb-player/hidden.json", "r");
+    FILE* fp = std::fopen(kHiddenItemsPath, "r");
     if (!fp) return;
 
     std::fseek(fp, 0, SEEK_END);
