@@ -27,6 +27,7 @@ enum AppMode {
     ModePlayer,
     ModeImage,
     ModeHidden,
+    ModeExit,
     ModeError,
 };
 
@@ -115,8 +116,19 @@ struct PlayerState {
     int loading;
     int hasFrame;
     int paused;
+    int hudVisible;
+    int speedSliderVisible;
+    int settingsVisible;
+    int swipeSeeking;
+    int loopPlayback;
+    int autoRotateEnabled;
+    float hudAnim;
+    double speed;
     double positionSeconds;
     double durationSeconds;
+    double swipeSeekStartSeconds;
+    double swipeSeekOffsetSeconds;
+    double swipeSeekTargetSeconds;
     char fileName[192];
     char message[192];
     char detail[192];

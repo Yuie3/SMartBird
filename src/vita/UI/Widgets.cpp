@@ -2,10 +2,33 @@
 
 #include "Config/I18n.hpp"
 #include "Core/State.hpp"
+#include "UI/Theme.hpp"
 #include "Utils/FileTypes.hpp"
 #include "Utils/Math.hpp"
 
 #include <cstdio>
+
+namespace {
+
+void drawGlossyPanel(NVGcontext* vg, float x, float y, float w, float h, bool selected) {
+    if (selected) {
+        ui::drawFocusPanel(vg, x, y, w, h, ui::kPanelRadius);
+    } else {
+        ui::drawGlassPanel(vg, x, y, w, h, ui::kPanelRadius, false);
+    }
+}
+
+void drawChevronGlyph(NVGcontext* vg, float x, float y, NVGcolor color) {
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, x, y);
+    nvgLineTo(vg, x + 17.0f, y + 11.0f);
+    nvgLineTo(vg, x, y + 22.0f);
+    nvgClosePath(vg);
+    nvgFillColor(vg, color);
+    nvgFill(vg);
+}
+
+} // namespace
 
 void drawText(NVGcontext* vg, int font, float x, float y, float size, NVGcolor color, const char* text) {
     nvgFontFaceId(vg, font);
@@ -31,22 +54,23 @@ void drawMarqueeText(NVGcontext* vg, int font, float x, float y, float maxW, flo
     const float width = textWidth(vg, font, size, text);
     float offset = 0.0f;
     if (active && width > maxW) {
-        const float overflow = width - maxW;
         const float gap = 56.0f;
-        const float speed = 0.65f;
-        const int pauseFrames = 75;
-        const int travelFrames = static_cast<int>((overflow + gap) / speed) + 1;
+        const float speed = 0.48f;
+        const int pauseFrames = 55;
+        const int travelFrames = static_cast<int>((width + gap) / speed) + 1;
         const int cycle = pauseFrames + travelFrames;
         const int phase = cycle > 0 ? gUiFrame % cycle : 0;
         if (phase >= pauseFrames) {
             offset = (phase - pauseFrames) * speed;
-            if (offset > overflow + gap) offset = overflow + gap;
         }
     }
 
     nvgSave(vg);
     nvgIntersectScissor(vg, x, y - size - 6.0f, maxW, size + 12.0f);
     drawText(vg, font, x - offset, y, size, color, text);
+    if (active && width > maxW) {
+        drawText(vg, font, x - offset + width + 56.0f, y, size, color, text);
+    }
     nvgRestore(vg);
 }
 
@@ -113,95 +137,93 @@ void drawSmallBadge(NVGcontext* vg, int font, float x, float y, float w,
     nvgText(vg, x + w * 0.5f, y + 11.0f, label, nullptr);
 }
 
-void drawEntryRow(NVGcontext* vg, int font, const SmbEntry& entry, int row, bool selected) {
-    const float top = 178.0f + row * 38.0f;
-    const float y = top + 26.0f;
-    const float rowX = 40.0f;
-    const float rowW = 880.0f;
-    if (!selected && (row % 2) == 1) {
-        nvgBeginPath(vg);
-        nvgRect(vg, rowX, top, rowW, 36.0f);
-        nvgFillColor(vg, nvgRGBA(255, 255, 255, 10));
-        nvgFill(vg);
-    }
-    if (selected) {
-        nvgBeginPath(vg);
-        nvgRoundedRect(vg, rowX, top, rowW, 36.0f, 4.0f);
-        nvgFillColor(vg, nvgRGB(30, 76, 99));
-        nvgFill(vg);
-        nvgBeginPath(vg);
-        nvgRoundedRect(vg, rowX, top, 5.0f, 36.0f, 2.0f);
-        nvgFillColor(vg, nvgRGB(0, 180, 216));
-        nvgFill(vg);
+void drawListFocus(NVGcontext* vg, float top, float pulse) {
+    ui::drawFocusPanel(vg, ui::kPageMargin, top, kWidth - ui::kPageMargin * 2.0f,
+                       kListRowHeight, ui::kPanelRadius, pulse);
+}
+
+void drawEntryRowAt(NVGcontext* vg, int font, const SmbEntry& entry, float top, bool selected) {
+    const float y = top + 35.0f;
+    const float rowX = ui::kPageMargin;
+    const float rowW = kWidth - ui::kPageMargin * 2.0f;
+    if (!selected) {
+        drawGlossyPanel(vg, rowX, top, rowW, kListRowHeight, false);
     }
 
-    const NVGcolor textColor = selected ? nvgRGB(250, 253, 255) : nvgRGB(219, 228, 232);
+    const NVGcolor textColor = selected ? ui::textPrimary() : ui::textSecondary();
+    const NVGcolor iconColor = selected ? ui::textPrimary() : nvgRGBA(190, 232, 246, 225);
     if (entry.directory) {
-        drawFolderGlyph(vg, 58.0f, top + 7.0f, selected ? nvgRGB(116, 221, 247) : nvgRGB(118, 177, 196));
-        drawMarqueeText(vg, font, 108.0f, y, 800.0f, 21.0f, textColor, entry.name, selected);
+        drawFolderGlyph(vg, rowX + 28.0f, top + 16.0f, iconColor);
+        drawMarqueeText(vg, font, rowX + 80.0f, y, 675.0f, 23.0f, textColor, entry.name, selected);
+        drawChevronGlyph(vg, rowX + rowW - 54.0f, top + 16.0f,
+                         selected ? ui::textPrimary() : nvgRGBA(166, 204, 218, 210));
     } else {
         const unsigned long mb = static_cast<unsigned long>((entry.size + 1024 * 1024 - 1) / (1024 * 1024));
         char sizeLine[40];
         std::snprintf(sizeLine, sizeof(sizeLine), "%lu MB", mb);
         if (isImageFile(entry.name)) {
-            drawPhotoGlyph(vg, 58.0f, top + 4.0f, selected ? nvgRGB(116, 221, 247) : nvgRGB(156, 188, 201));
+            drawPhotoGlyph(vg, rowX + 28.0f, top + 14.0f, iconColor);
         } else {
-            drawPlayGlyph(vg, 58.0f, top + 4.0f, selected ? nvgRGB(116, 221, 247) : nvgRGB(156, 188, 201));
+            drawPlayGlyph(vg, rowX + 28.0f, top + 14.0f, iconColor);
         }
-        drawSmallBadge(vg, font, 98.0f, top + 7.0f, 52.0f, fileExtensionLabel(entry.name),
-                       selected ? nvgRGBA(0, 180, 216, 70) : nvgRGBA(255, 255, 255, 22),
-                       selected ? nvgRGB(225, 248, 255) : nvgRGB(172, 190, 200));
+        drawSmallBadge(vg, font, rowX + 80.0f, top + 17.0f, 58.0f, fileExtensionLabel(entry.name),
+                       selected ? nvgRGBA(255, 255, 255, 72) : nvgRGBA(1, 40, 88, 120),
+                       selected ? ui::textPrimary() : nvgRGBA(216, 242, 250, 230));
 
         nvgFontFaceId(vg, font);
-        nvgFontSize(vg, 18.0f);
+        nvgFontSize(vg, 17.0f);
         nvgTextAlign(vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BASELINE);
-        nvgFillColor(vg, textColor);
-        nvgText(vg, 908.0f, y, sizeLine, nullptr);
+        nvgFillColor(vg, selected ? ui::textPrimary() : ui::textMuted());
+        nvgText(vg, rowX + rowW - 46.0f, y, sizeLine, nullptr);
 
-        drawMarqueeText(vg, font, 168.0f, y, 620.0f, 21.0f, textColor, entry.name, selected);
+        drawMarqueeText(vg, font, rowX + 158.0f, y, 520.0f, 22.0f, textColor, entry.name, selected);
     }
 }
 
-void drawHiddenRow(NVGcontext* vg, int font, const HiddenItem& item, int row, bool selected) {
-    const float top = 178.0f + row * 38.0f;
-    const float y = top + 26.0f;
-    if (!selected && (row % 2) == 1) {
-        nvgBeginPath(vg);
-        nvgRect(vg, 40.0f, top, 880.0f, 36.0f);
-        nvgFillColor(vg, nvgRGBA(255, 255, 255, 10));
-        nvgFill(vg);
-    }
-    if (selected) {
-        nvgBeginPath(vg);
-        nvgRoundedRect(vg, 40.0f, top, 880.0f, 36.0f, 4.0f);
-        nvgFillColor(vg, nvgRGB(30, 76, 99));
-        nvgFill(vg);
-        nvgBeginPath(vg);
-        nvgRoundedRect(vg, 40.0f, top, 5.0f, 36.0f, 2.0f);
-        nvgFillColor(vg, nvgRGB(0, 180, 216));
-        nvgFill(vg);
+void drawEntryRow(NVGcontext* vg, int font, const SmbEntry& entry, int row, bool selected) {
+    const float top = kListTopY + row * kListRowPitch;
+    if (selected) drawListFocus(vg, top, 0.0f);
+    drawEntryRowAt(vg, font, entry, top, selected);
+}
+
+void drawHiddenRowAt(NVGcontext* vg, int font, const HiddenItem& item, float top, bool selected) {
+    const float y = top + 35.0f;
+    const float rowX = ui::kPageMargin;
+    const float rowW = kWidth - ui::kPageMargin * 2.0f;
+    if (!selected) {
+        drawGlossyPanel(vg, rowX, top, rowW, kListRowHeight, false);
     }
 
-    const NVGcolor textColor = selected ? nvgRGB(250, 253, 255) : nvgRGB(219, 228, 232);
+    const NVGcolor textColor = selected ? ui::textPrimary() : ui::textSecondary();
     char detail[384];
     if (item.source == SourceSmb) {
-        drawText(vg, font, 56.0f, y, 19.0f, textColor, "SMB");
+        drawSmallBadge(vg, font, rowX + 30.0f, top + 16.0f, 64.0f, "SMB",
+                       selected ? nvgRGBA(255, 255, 255, 72) : nvgRGBA(1, 40, 88, 120),
+                       textColor);
         std::snprintf(detail, sizeof(detail), "//%s/%s/%s   %s",
                       item.server, item.share, item.path, item.name);
     } else {
-        drawText(vg, font, 56.0f, y, 19.0f, textColor, "LOCAL");
+        drawSmallBadge(vg, font, rowX + 30.0f, top + 16.0f, 64.0f, "LOCAL",
+                       selected ? nvgRGBA(255, 255, 255, 72) : nvgRGBA(1, 40, 88, 120),
+                       textColor);
         std::snprintf(detail, sizeof(detail), "%s   %s", item.path, item.name);
     }
-    drawMarqueeText(vg, font, 136.0f, y, 772.0f, 19.0f, textColor, detail, selected);
+    drawMarqueeText(vg, font, rowX + 112.0f, y, 720.0f, 22.0f, textColor, detail, selected);
+}
+
+void drawHiddenRow(NVGcontext* vg, int font, const HiddenItem& item, int row, bool selected) {
+    const float top = kListTopY + row * kListRowPitch;
+    if (selected) drawListFocus(vg, top, 0.0f);
+    drawHiddenRowAt(vg, font, item, top, selected);
 }
 
 void drawCopyProgress(NVGcontext* vg, int font, const CopyState& copy) {
     if (!copy.busy && !copy.done && !copy.message[0]) return;
 
-    const float x = 40.0f;
-    const float y = 146.0f;
-    const float w = 880.0f;
-    const float h = 22.0f;
+    const float x = 560.0f;
+    const float y = 62.0f;
+    const float w = 360.0f;
+    const float h = 8.0f;
     float frac = 0.0f;
     if (copy.total > 0) {
         frac = static_cast<float>(static_cast<double>(copy.copied) / static_cast<double>(copy.total));
@@ -218,67 +240,54 @@ void drawCopyProgress(NVGcontext* vg, int font, const CopyState& copy) {
         std::snprintf(line, sizeof(line), t("copy.done.fmt"), copy.destPath);
     }
 
-    drawText(vg, font, x, y, 15.0f,
-             copy.error ? nvgRGB(245, 104, 104) : nvgRGB(190, 202, 210), line);
+    drawText(vg, font, x, y, 13.0f,
+             copy.error ? ui::danger() : ui::textSecondary(), line);
 
     nvgBeginPath(vg);
-    nvgRoundedRect(vg, x, y + 8.0f, w, h, 3.0f);
+    nvgRoundedRect(vg, x, y + 8.0f, w, h, 4.0f);
     nvgFillColor(vg, nvgRGBA(255, 255, 255, 38));
     nvgFill(vg);
 
     nvgBeginPath(vg);
-    nvgRoundedRect(vg, x, y + 8.0f, w * (copy.done && !copy.error ? 1.0f : frac), h, 3.0f);
-    nvgFillColor(vg, copy.error ? nvgRGB(245, 104, 104) : nvgRGB(0, 180, 216));
+    nvgRoundedRect(vg, x, y + 8.0f, w * (copy.done && !copy.error ? 1.0f : frac), h, 4.0f);
+    nvgFillColor(vg, copy.error ? ui::danger() : ui::accent());
     nvgFill(vg);
 }
 
 void drawConnectRow(NVGcontext* vg, int font, float y, const char* label, const char* value, bool focused) {
-    const float x = 58.0f;
-    const float w = 844.0f;
-    const float h = 36.0f;
-    nvgBeginPath(vg);
-    nvgRoundedRect(vg, x, y - 25.0f, w, h, 4.0f);
-    nvgFillColor(vg, focused ? nvgRGB(36, 89, 116) : nvgRGB(20, 27, 34));
-    nvgFill(vg);
+    const float x = 80.0f;
+    const float w = 800.0f;
+    const float h = 34.0f;
+    if (!focused) ui::drawGlassPanel(vg, x, y - 24.0f, w, h, 6.0f, false);
 
     drawText(vg, font, x + 16.0f, y, 18.0f,
-             focused ? nvgRGB(245, 250, 255) : nvgRGB(160, 174, 184), label);
-    drawText(vg, font, x + 185.0f, y, 18.0f,
-             focused ? nvgRGB(250, 253, 255) : nvgRGB(218, 226, 232),
-             value && value[0] ? value : t("field.empty"));
+             focused ? ui::textPrimary() : ui::textMuted(), label);
+    drawMarqueeText(vg, font, x + 176.0f, y, 590.0f, 18.0f,
+                    focused ? ui::textPrimary() : ui::textSecondary(),
+                    value && value[0] ? value : t("field.empty"), focused);
 }
 
 void drawConnectActionButton(NVGcontext* vg, int font, float x, float y, float w,
                              const char* button, const char* label, bool focused) {
     const float h = 68.0f;
-    nvgBeginPath(vg);
-    nvgRoundedRect(vg, x, y, w, h, 5.0f);
-    nvgFillColor(vg, focused ? nvgRGB(38, 94, 122) : nvgRGB(20, 27, 34));
-    nvgFill(vg);
-
-    if (focused) {
-        nvgBeginPath(vg);
-        nvgRoundedRect(vg, x + 1.0f, y + 1.0f, w - 2.0f, h - 2.0f, 4.0f);
-        nvgStrokeWidth(vg, 1.5f);
-        nvgStrokeColor(vg, nvgRGB(92, 186, 219));
-        nvgStroke(vg);
-    }
+    if (!focused) ui::drawGlassPanel(vg, x, y, w, h, ui::kPanelRadius, true);
 
     nvgFontFaceId(vg, font);
     nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_BASELINE);
     nvgFontSize(vg, 15.0f);
-    nvgFillColor(vg, focused ? nvgRGB(184, 235, 250) : nvgRGB(145, 164, 176));
+    nvgFillColor(vg, focused ? ui::textPrimary() : ui::textMuted());
     nvgText(vg, x + w * 0.5f, y + 25.0f, button, nullptr);
 
     nvgFontSize(vg, 19.0f);
-    nvgFillColor(vg, focused ? nvgRGB(250, 253, 255) : nvgRGB(218, 226, 232));
+    nvgFillColor(vg, focused ? ui::textPrimary() : ui::textSecondary());
     nvgText(vg, x + w * 0.5f, y + 51.0f, label, nullptr);
 }
 
 void drawFooterHints(NVGcontext* vg, int font, const FooterHint* hints, int count) {
     float x = 40.0f;
-    const float y = 512.0f;
-    for (int i = 0; i < count; ++i) {
+    const float y = ui::kFooterTop + 10.0f;
+    const int visibleCount = count > 5 ? 5 : count;
+    for (int i = 0; i < visibleCount; ++i) {
         if (!hints[i].key || !hints[i].label) continue;
         const float keyW = textWidth(vg, font, 14.0f, hints[i].key) + 20.0f;
         const float labelW = textWidth(vg, font, 16.0f, hints[i].label);
@@ -286,22 +295,22 @@ void drawFooterHints(NVGcontext* vg, int font, const FooterHint* hints, int coun
         if (x + itemW > 920.0f) break;
 
         nvgBeginPath(vg);
-        nvgRoundedRect(vg, x, y, keyW, 22.0f, 4.0f);
-        nvgFillColor(vg, nvgRGBA(255, 255, 255, 22));
+        nvgRoundedRect(vg, x, y, keyW, 22.0f, 5.0f);
+        nvgFillColor(vg, nvgRGBA(2, 38, 86, 120));
         nvgFill(vg);
         nvgStrokeWidth(vg, 1.0f);
-        nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 36));
+        nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 78));
         nvgStroke(vg);
 
         nvgFontFaceId(vg, font);
         nvgFontSize(vg, 14.0f);
         nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-        nvgFillColor(vg, nvgRGB(225, 234, 238));
+        nvgFillColor(vg, ui::textPrimary());
         nvgText(vg, x + keyW * 0.5f, y + 11.0f, hints[i].key, nullptr);
 
         nvgFontSize(vg, 16.0f);
         nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-        nvgFillColor(vg, nvgRGB(178, 194, 204));
+        nvgFillColor(vg, ui::textSecondary());
         nvgText(vg, x + keyW + 7.0f, y + 11.0f, hints[i].label, nullptr);
         x += itemW;
     }

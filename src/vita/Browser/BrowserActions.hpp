@@ -13,4 +13,5 @@ void openBrowserEntryAtIndex(const ScanState& snapshot, int index, int* selected
                              SceGxmContext* gxmCtx, SceGxmShaderPatcher* patcher,
                              SceGxmMultisampleMode msaa);
 void keepSelectedVisible(int selected, int count, int* listTop);
+void keepSelectedNearListCenter(int selected, int count, int* listTop);
 void scrollListByRows(int rows, int count, int* selected, int* listTop);

@@ -119,9 +119,23 @@
   },
   "player": {
     "back": "× 返回",
-    "rotate": {
-      "fmt": "△ 旋轉 %d°"
+    "orientation": {
+      "portrait": "直向",
+      "landscape": "橫向"
     },
+    "speed": {
+      "fmt": "%.2gx"
+    },
+    "speed_hint": "倍速",
+    "settings": "設定",
+    "loop": "循環",
+    "loop_playback": "循環播放",
+    "rotation": "畫面方向",
+    "auto_rotate": "自動旋轉",
+    "auto_rotate_hint": "依照 Vita 方向切換",
+    "auto_rotate_on": "自動旋轉開啟",
+    "auto_rotate_off": "自動旋轉關閉",
+    "auto_rotate_unavailable": "自動旋轉不可用",
     "loading": "載入中…",
     "waiting": "等待畫面…",
     "playing": "播放中",

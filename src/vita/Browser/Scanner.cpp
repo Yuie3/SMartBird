@@ -74,13 +74,18 @@ void finishScan(const char* message) {
     unlockScan();
 }
 
+int exitScanThread(int status) {
+    sceKernelExitDeleteThread(status);
+    return status;
+}
+
 int scanSmbThread(SceSize, void*) {
     resetScanEntries(t("scan.smb.connecting"));
 
     struct smb2_context* smb = smb2_init_context();
     if (!smb) {
         setScanMessage(ScanError, t("scan.smb.init_failed"));
-        return 1;
+        return exitScanThread(1);
     }
 
     smb2_set_timeout(smb, 8);
@@ -93,7 +98,7 @@ int scanSmbThread(SceSize, void*) {
         std::snprintf(msg, sizeof(msg), t("scan.smb.connect_failed.fmt"), smb2_get_error(smb));
         setScanMessage(ScanError, msg);
         smb2_destroy_context(smb);
-        return 1;
+        return exitScanThread(1);
     }
 
     setScanMessage(ScanLoading, t("scan.smb.reading"));
@@ -114,7 +119,7 @@ int scanSmbThread(SceSize, void*) {
             setScanMessage(ScanError, msg);
             smb2_disconnect_share(smb);
             smb2_destroy_context(smb);
-            return 1;
+            return exitScanThread(1);
         }
     }
 
@@ -154,7 +159,7 @@ int scanSmbThread(SceSize, void*) {
     char msg[192];
     std::snprintf(msg, sizeof(msg), t("scan.smb.loaded.fmt"), loaded, skipped);
     finishScan(msg);
-    return 0;
+    return exitScanThread(0);
 }
 
 int scanLocalThread(SceSize, void*) {
@@ -167,7 +172,7 @@ int scanLocalThread(SceSize, void*) {
         char msg[192];
         std::snprintf(msg, sizeof(msg), t("scan.local.open_failed.fmt"), static_cast<unsigned int>(dir));
         setScanMessage(ScanError, msg);
-        return 1;
+        return exitScanThread(1);
     }
 
     int skipped = 0;
@@ -213,7 +218,7 @@ int scanLocalThread(SceSize, void*) {
     char msg[192];
     std::snprintf(msg, sizeof(msg), t("scan.local.loaded.fmt"), loaded, skipped);
     finishScan(msg);
-    return 0;
+    return exitScanThread(0);
 }
 
 } // namespace

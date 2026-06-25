@@ -4,6 +4,7 @@
 #include "Config/I18n.hpp"
 #include "Core/Constants.hpp"
 #include "Core/State.hpp"
+#include "UI/Theme.hpp"
 #include "UI/Widgets.hpp"
 #include "Utils/FileTypes.hpp"
 #include "Utils/Math.hpp"
@@ -252,7 +253,7 @@ bool openImageEntry(const SmbEntry& entry, int source, NVGcontext* vg, bool pres
 void drawImageViewer(NVGcontext* vg, int font, const ImageState& image) {
     nvgBeginPath(vg);
     nvgRect(vg, 0.0f, 0.0f, kWidth, kHeight);
-    nvgFillColor(vg, nvgRGB(6, 8, 11));
+    nvgFillColor(vg, nvgRGB(3, 10, 20));
     nvgFill(vg);
 
     if (image.loaded && image.nvgImage) {
@@ -271,22 +272,22 @@ void drawImageViewer(NVGcontext* vg, int font, const ImageState& image) {
         nvgFontFaceId(vg, font);
         nvgFontSize(vg, 24.0f);
         nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-        nvgFillColor(vg, image.error ? nvgRGB(245, 104, 104) : nvgRGB(190, 202, 210));
+        nvgFillColor(vg, image.error ? ui::danger() : ui::textSecondary());
         nvgText(vg, kWidth * 0.5f, kHeight * 0.5f - 16.0f,
                 image.message[0] ? image.message : t("image.loading"), nullptr);
     }
 
     if (image.loaded && !image.hudVisible) return;
 
-    const NVGpaint top = nvgLinearGradient(vg, 0.0f, 0.0f, 0.0f, 70.0f,
-                                           nvgRGBA(0, 0, 0, 170), nvgRGBA(0, 0, 0, 0));
+    const NVGpaint top = nvgLinearGradient(vg, 0.0f, 0.0f, 0.0f, 76.0f,
+                                           nvgRGBA(2, 18, 38, 190), nvgRGBA(2, 18, 38, 0));
     nvgBeginPath(vg);
-    nvgRect(vg, 0.0f, 0.0f, kWidth, 70.0f);
+    nvgRect(vg, 0.0f, 0.0f, kWidth, 76.0f);
     nvgFillPaint(vg, top);
     nvgFill(vg);
 
-    drawMarqueeText(vg, font, 40.0f, 34.0f, 650.0f, 20.0f,
-                    nvgRGB(245, 250, 255), image.fileName[0] ? image.fileName : t("app.title"), true);
+    drawMarqueeText(vg, font, 40.0f, 36.0f, 650.0f, 20.0f,
+                    ui::textPrimary(), image.fileName[0] ? image.fileName : t("app.title"), true);
 
     char info[96];
     if (image.loaded) {
@@ -298,20 +299,15 @@ void drawImageViewer(NVGcontext* vg, int font, const ImageState& image) {
     nvgFontFaceId(vg, font);
     nvgFontSize(vg, 15.0f);
     nvgTextAlign(vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BASELINE);
-    nvgFillColor(vg, nvgRGB(178, 194, 204));
-    nvgText(vg, 920.0f, 34.0f, info, nullptr);
+    nvgFillColor(vg, ui::textSecondary());
+    nvgText(vg, 920.0f, 36.0f, info, nullptr);
 
-    nvgBeginPath(vg);
-    nvgRect(vg, 0.0f, 500.0f, kWidth, 44.0f);
-    nvgFillColor(vg, nvgRGB(10, 14, 18));
-    nvgFill(vg);
+    ui::drawFooterBar(vg);
 
     const FooterHint hints[] = {
         {"L/R", t("hint.prev_next")},
         {"左搖桿", t("hint.move")},
         {"↑↓/右搖桿", t("hint.zoom")},
-        {"○", t("hint.reset")},
-        {"△", t("hint.rotate")},
         {"□", t("hint.hud")},
         {"×", t("hint.back")},
     };

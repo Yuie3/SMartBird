@@ -14,14 +14,20 @@ extern "C" {
 #include <mpv/client.h>
 #include <mpv/render.h>
 #include <mpv/render_gxm.h>
+#include <psp2/motion.h>
 }
 
 #include <clocale>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 
 namespace {
+
+int gAutoRotateCandidateDegrees = -1;
+int gAutoRotateCandidateFrames = 0;
+bool gMotionSamplingStarted = false;
 
 void setPlaybackError(const char* title, const char* reason) {
     if (gPlayer.mpv) {
@@ -34,7 +40,6 @@ void setPlaybackError(const char* title, const char* reason) {
     gPlayer.loading = 0;
     gPlayer.waitingForValidation = 0;
     unlockScan();
-    sceClibPrintf("[vita-smb-player] playback error: %s / %s\n", title, reason);
 }
 
 void pushPlayerLog(const char* line) {
@@ -52,7 +57,6 @@ void pushPlayerLog(const char* line) {
     if (gPlayer.logScroll > 0) ++gPlayer.logScroll;
     if (gPlayer.logScroll > gPlayer.logCount - 1) gPlayer.logScroll = gPlayer.logCount - 1;
     unlockScan();
-    sceClibPrintf("[vita-smb-player] log: %s\n", line);
 }
 
 double getMpvDouble(const char* name) {
@@ -86,6 +90,46 @@ void setMpvRotation(int degrees) {
     lockScan();
     gPlayer.rotationDegrees = normalized;
     unlockScan();
+}
+
+int detectMotionRotationDegrees(const SceMotionState& motion) {
+    float x = motion.basicOrientation.x;
+    float y = motion.basicOrientation.y;
+    if (std::fabs(x) < 0.5f && std::fabs(y) < 0.5f) {
+        x = motion.acceleration.x;
+        y = motion.acceleration.y;
+    }
+    const float absX = std::fabs(x);
+    const float absY = std::fabs(y);
+    constexpr float kMinimumTilt = 0.24f;
+    constexpr float kDominanceRatio = 1.25f;
+
+    if (absX < kMinimumTilt && absY < kMinimumTilt) return -1;
+    if (absX > absY * kDominanceRatio) return x > 0.0f ? 90 : 270;
+    if (absY > absX * kDominanceRatio) return y > 0.0f ? 0 : 180;
+    return -1;
+}
+
+void resetAutoRotateDebounce() {
+    gAutoRotateCandidateDegrees = -1;
+    gAutoRotateCandidateFrames = 0;
+}
+
+bool startMotionSampling() {
+    if (gMotionSamplingStarted) return true;
+    const int rc = sceMotionStartSampling();
+    if (rc < 0) return false;
+    sceMotionSetDeadband(1);
+    sceMotionSetTiltCorrection(1);
+    gMotionSamplingStarted = true;
+    return true;
+}
+
+void stopMotionSampling() {
+    if (!gMotionSamplingStarted) return;
+    sceMotionStopSampling();
+    gMotionSamplingStarted = false;
+    resetAutoRotateDebounce();
 }
 
 bool resolutionWithinVitaLimit(int width, int height) {
@@ -133,6 +177,7 @@ void updatePlaybackProperties() {
     if (!gPlayer.mpv) return;
     const double pos = getMpvDouble("time-pos");
     const double dur = getMpvDouble("duration");
+    const double speed = getMpvDouble("speed");
     const int paused = getMpvFlag("pause");
     int width = getMpvIntProperty("video-params/w");
     int height = getMpvIntProperty("video-params/h");
@@ -142,6 +187,7 @@ void updatePlaybackProperties() {
     lockScan();
     if (pos >= 0.0 && pos < 24.0 * 60.0 * 60.0) gPlayer.positionSeconds = pos;
     if (dur > 0.0 && dur < 24.0 * 60.0 * 60.0) gPlayer.durationSeconds = dur;
+    if (speed >= 0.25 && speed <= 4.0) gPlayer.speed = speed;
     gPlayer.paused = paused;
     unlockScan();
 
@@ -325,7 +371,6 @@ void setUnsupportedPlaybackError(const char* title, const char* fallback) {
     gPlayer.loading = 0;
     gPlayer.waitingForValidation = 0;
     unlockScan();
-    sceClibPrintf("[vita-smb-player] playback error: %s / %s\n", title, reason);
 }
 
 bool shouldTreatDecoderInitAsFatal() {
@@ -367,19 +412,54 @@ void inspectMpvLogForUserError(const char* text) {
 
 void showPlayerOverlay() {
     lockScan();
+    gPlayer.hudVisible = 1;
     gPlayer.overlayFrames = 240;
+    if (gPlayer.hudAnim < 0.02f) gPlayer.hudAnim = 0.02f;
     unlockScan();
 }
 
 void hidePlayerOverlay() {
     lockScan();
+    gPlayer.hudVisible = 0;
+    gPlayer.speedSliderVisible = 0;
+    gPlayer.settingsVisible = 0;
     gPlayer.overlayFrames = 0;
+    unlockScan();
+}
+
+void togglePlayerOverlay() {
+    lockScan();
+    const bool visible = gPlayer.hudVisible &&
+        (gPlayer.loading || gPlayer.paused || gPlayer.overlayFrames > 0 ||
+         gPlayer.speedSliderVisible || gPlayer.settingsVisible ||
+         !gPlayer.hasFrame || gPlayer.hudAnim > 0.35f);
+    gPlayer.hudVisible = visible ? 0 : 1;
+    gPlayer.speedSliderVisible = 0;
+    gPlayer.settingsVisible = 0;
+    gPlayer.overlayFrames = visible ? 0 : 240;
+    if (!visible && gPlayer.hudAnim < 0.02f) gPlayer.hudAnim = 0.02f;
     unlockScan();
 }
 
 void tickPlayerOverlay() {
     lockScan();
-    if (gPlayer.overlayFrames > 0) --gPlayer.overlayFrames;
+    if (gPlayer.overlayFrames > 0) {
+        --gPlayer.overlayFrames;
+        if (gPlayer.overlayFrames == 0 && !gPlayer.paused && !gPlayer.loading &&
+            !gPlayer.speedSliderVisible && !gPlayer.settingsVisible && gPlayer.hasFrame) {
+            gPlayer.hudVisible = 0;
+        }
+    }
+
+    const float target = gPlayer.hudVisible ? 1.0f : 0.0f;
+    const float step = gPlayer.hudVisible ? 0.085f : 0.075f;
+    if (gPlayer.hudAnim < target) {
+        gPlayer.hudAnim += step;
+        if (gPlayer.hudAnim > target) gPlayer.hudAnim = target;
+    } else if (gPlayer.hudAnim > target) {
+        gPlayer.hudAnim -= step;
+        if (gPlayer.hudAnim < target) gPlayer.hudAnim = target;
+    }
     unlockScan();
 }
 
@@ -393,13 +473,136 @@ void setMpvPause(bool paused) {
     unlockScan();
 }
 
-void cycleMpvRotation() {
+void setMpvSpeed(double speed) {
+    if (!gPlayer.mpv) return;
+    if (speed < 0.5) speed = 0.5;
+    if (speed > 2.0) speed = 2.0;
+    mpv_set_property(gPlayer.mpv, "speed", MPV_FORMAT_DOUBLE, &speed);
+    lockScan();
+    gPlayer.speed = speed;
+    std::snprintf(gPlayer.message, sizeof(gPlayer.message), t("player.speed.fmt"), speed);
+    unlockScan();
+}
+
+void togglePlayerSpeedSlider() {
+    lockScan();
+    gPlayer.hudVisible = 1;
+    gPlayer.overlayFrames = 240;
+    if (gPlayer.hudAnim < 0.02f) gPlayer.hudAnim = 0.02f;
+    const int nextVisible = !gPlayer.speedSliderVisible;
+    gPlayer.speedSliderVisible = nextVisible;
+    if (nextVisible) gPlayer.settingsVisible = 0;
+    unlockScan();
+}
+
+void togglePlayerSettingsPanel() {
+    lockScan();
+    gPlayer.hudVisible = 1;
+    gPlayer.overlayFrames = 240;
+    if (gPlayer.hudAnim < 0.02f) gPlayer.hudAnim = 0.02f;
+    const int nextVisible = !gPlayer.settingsVisible;
+    gPlayer.settingsVisible = nextVisible;
+    if (nextVisible) gPlayer.speedSliderVisible = 0;
+    unlockScan();
+}
+
+void adjustMpvSpeed(int direction) {
+    if (!gPlayer.mpv || direction == 0) return;
+    constexpr double speeds[] = {0.5, 0.75, 1.0, 1.25, 1.5, 2.0};
+    constexpr int speedCount = static_cast<int>(sizeof(speeds) / sizeof(speeds[0]));
+
+    double current = 1.0;
+    lockScan();
+    current = gPlayer.speed > 0.0 ? gPlayer.speed : 1.0;
+    unlockScan();
+
+    int index = 2;
+    double bestDiff = 999.0;
+    for (int i = 0; i < speedCount; ++i) {
+        const double diff = speeds[i] > current ? speeds[i] - current : current - speeds[i];
+        if (diff < bestDiff) {
+            bestDiff = diff;
+            index = i;
+        }
+    }
+    index += direction > 0 ? 1 : -1;
+    if (index < 0) index = 0;
+    if (index >= speedCount) index = speedCount - 1;
+
+    setMpvSpeed(speeds[index]);
+    showPlayerOverlay();
+}
+
+void toggleMpvLoop() {
+    lockScan();
+    const int enabled = gPlayer.loopPlayback ? 0 : 1;
+    gPlayer.loopPlayback = enabled;
+    copyText(gPlayer.message, sizeof(gPlayer.message), enabled ? t("player.loop_on") : t("player.loop_off"));
+    unlockScan();
+
+    if (gPlayer.mpv) {
+        mpv_set_property_string(gPlayer.mpv, "loop-file", enabled ? "inf" : "no");
+    }
+    showPlayerOverlay();
+}
+
+void toggleMpvAutoRotate() {
+    int enabled = 0;
+    lockScan();
+    enabled = gPlayer.autoRotateEnabled ? 0 : 1;
+    gPlayer.autoRotateEnabled = enabled;
+    copyText(gPlayer.message, sizeof(gPlayer.message),
+             enabled ? t("player.auto_rotate_on") : t("player.auto_rotate_off"));
+    unlockScan();
+
+    resetAutoRotateDebounce();
+    if (enabled && !startMotionSampling()) {
+        lockScan();
+        gPlayer.autoRotateEnabled = 0;
+        copyText(gPlayer.message, sizeof(gPlayer.message), t("player.auto_rotate_unavailable"));
+        unlockScan();
+    } else if (!enabled) {
+        stopMotionSampling();
+        setMpvRotation(0);
+    } else {
+        updateMpvAutoRotation();
+    }
+    showPlayerOverlay();
+}
+
+void updateMpvAutoRotation() {
+    int enabled = 0;
     int current = 0;
     lockScan();
+    enabled = gPlayer.autoRotateEnabled;
     current = gPlayer.rotationDegrees;
     unlockScan();
-    setMpvRotation(current == 270 ? 0 : 270);
-    showPlayerOverlay();
+    if (!enabled) return;
+    if (!startMotionSampling()) return;
+
+    SceMotionState motion = {};
+    if (sceMotionGetState(&motion) < 0) {
+        resetAutoRotateDebounce();
+        return;
+    }
+
+    const int target = detectMotionRotationDegrees(motion);
+    if (target < 0 || target == current) {
+        resetAutoRotateDebounce();
+        return;
+    }
+
+    if (gAutoRotateCandidateDegrees != target) {
+        gAutoRotateCandidateDegrees = target;
+        gAutoRotateCandidateFrames = 1;
+        return;
+    }
+
+    ++gAutoRotateCandidateFrames;
+    if (gAutoRotateCandidateFrames >= 24) {
+        setMpvRotation(target);
+        resetAutoRotateDebounce();
+    }
 }
 
 void seekMpvRelative(double seconds) {
@@ -428,12 +631,22 @@ void stopCurrentPlayback() {
     gPlayer.loading = 0;
     gPlayer.hasFrame = 0;
     gPlayer.paused = 0;
+    gPlayer.hudVisible = 1;
+    gPlayer.speedSliderVisible = 0;
+    gPlayer.settingsVisible = 0;
+    gPlayer.swipeSeeking = 0;
+    gPlayer.hudAnim = 1.0f;
+    gPlayer.speed = 1.0;
     gPlayer.positionSeconds = 0.0;
     gPlayer.durationSeconds = 0.0;
+    gPlayer.swipeSeekStartSeconds = 0.0;
+    gPlayer.swipeSeekOffsetSeconds = 0.0;
+    gPlayer.swipeSeekTargetSeconds = 0.0;
     gPlayer.overlayFrames = 0;
     gPlayer.waitingForValidation = 0;
     copyText(gPlayer.message, sizeof(gPlayer.message), t("player.stopped_short"));
     unlockScan();
+    stopMotionSampling();
 }
 
 bool initMpv(SceGxmContext* gxmCtx, SceGxmShaderPatcher* patcher, SceGxmMultisampleMode msaa, NVGcontext* vg) {
@@ -456,6 +669,7 @@ bool initMpv(SceGxmContext* gxmCtx, SceGxmShaderPatcher* patcher, SceGxmMultisam
     mpv_set_option_string(gPlayer.mpv, "terminal", "no");
     mpv_set_option_string(gPlayer.mpv, "vo", "libmpv");
     mpv_set_option_string(gPlayer.mpv, "hwdec", "vita-copy");
+    mpv_set_option_string(gPlayer.mpv, "video-timing-offset", "0");
     mpv_set_option_string(gPlayer.mpv, "audio-channels", "stereo");
     mpv_set_option_string(gPlayer.mpv, "vid", "auto");
     mpv_set_option_string(gPlayer.mpv, "aid", "auto");
@@ -586,20 +800,44 @@ void shutdownMpv() {
     gPlayer.loading = 0;
     gPlayer.hasFrame = 0;
     gPlayer.paused = 0;
+    gPlayer.hudVisible = 1;
+    gPlayer.speedSliderVisible = 0;
+    gPlayer.settingsVisible = 0;
+    gPlayer.swipeSeeking = 0;
+    gPlayer.autoRotateEnabled = 0;
+    gPlayer.hudAnim = 0.0f;
+    gPlayer.loopPlayback = 0;
+    gPlayer.speed = 1.0;
     gPlayer.positionSeconds = 0.0;
     gPlayer.durationSeconds = 0.0;
+    gPlayer.swipeSeekStartSeconds = 0.0;
+    gPlayer.swipeSeekOffsetSeconds = 0.0;
+    gPlayer.swipeSeekTargetSeconds = 0.0;
     gPlayer.videoWidth = 0;
     gPlayer.videoHeight = 0;
     gPlayer.rotationDegrees = 0;
     gPlayer.waitingForValidation = 0;
+    stopMotionSampling();
 }
 
-void renderMpvToFbo() {
+void renderMpvToFbo(bool forceRedraw) {
     if (!gPlayer.renderCtx) return;
-    if (!(mpv_render_context_update(gPlayer.renderCtx) & MPV_RENDER_UPDATE_FRAME)) return;
-    mpv_render_context_render(gPlayer.renderCtx, gPlayer.mpvParams);
-    mpv_render_context_report_swap(gPlayer.renderCtx);
-    gPlayer.hasFrame = 1;
+    const uint64_t updateFlags = mpv_render_context_update(gPlayer.renderCtx);
+    const bool hasNewFrame = (updateFlags & MPV_RENDER_UPDATE_FRAME) != 0;
+    if (!forceRedraw && !hasNewFrame) return;
+
+    int blockForTargetTime = 0;
+    mpv_render_param params[] = {
+        {MPV_RENDER_PARAM_FLIP_Y, &gPlayer.flipY},
+        {MPV_RENDER_PARAM_GXM_FBO, &gPlayer.mpvFbo},
+        {MPV_RENDER_PARAM_BLOCK_FOR_TARGET_TIME, &blockForTargetTime},
+        {MPV_RENDER_PARAM_INVALID, nullptr},
+    };
+    const int rc = mpv_render_context_render(gPlayer.renderCtx, params);
+    if (rc >= 0) {
+        mpv_render_context_report_swap(gPlayer.renderCtx);
+        if (hasNewFrame || gPlayer.hasFrame) gPlayer.hasFrame = 1;
+    }
 }
 
 void drawVideo(NVGcontext* vg, float x, float y, float w, float h) {
@@ -629,6 +867,16 @@ void playEntry(const SmbEntry& entry, int source, SceGxmContext* gxmCtx, SceGxmS
     }
 
     setMpvRotation(0);
+    resetAutoRotateDebounce();
+    double speed = 1.0;
+    mpv_set_property(gPlayer.mpv, "speed", MPV_FORMAT_DOUBLE, &speed);
+    int loopEnabled = 0;
+    int autoRotateEnabled = 0;
+    lockScan();
+    loopEnabled = gPlayer.loopPlayback;
+    autoRotateEnabled = gPlayer.autoRotateEnabled;
+    unlockScan();
+    mpv_set_property_string(gPlayer.mpv, "loop-file", loopEnabled ? "inf" : "no");
     int pauseFlag = 1;
     mpv_set_property(gPlayer.mpv, "pause", MPV_FORMAT_FLAG, &pauseFlag);
 
@@ -645,8 +893,19 @@ void playEntry(const SmbEntry& entry, int source, SceGxmContext* gxmCtx, SceGxmS
     gPlayer.loading = 1;
     gPlayer.hasFrame = 0;
     gPlayer.paused = 1;
+    gPlayer.hudVisible = 1;
+    gPlayer.speedSliderVisible = 0;
+    gPlayer.settingsVisible = 0;
+    gPlayer.swipeSeeking = 0;
+    gPlayer.autoRotateEnabled = autoRotateEnabled;
+    gPlayer.loopPlayback = loopEnabled;
+    gPlayer.hudAnim = 1.0f;
+    gPlayer.speed = 1.0;
     gPlayer.positionSeconds = 0.0;
     gPlayer.durationSeconds = 0.0;
+    gPlayer.swipeSeekStartSeconds = 0.0;
+    gPlayer.swipeSeekOffsetSeconds = 0.0;
+    gPlayer.swipeSeekTargetSeconds = 0.0;
     gPlayer.videoWidth = 0;
     gPlayer.videoHeight = 0;
     gPlayer.waitingForValidation = 1;
@@ -715,6 +974,11 @@ void pollMpvEvents() {
             copyText(gPlayer.message, sizeof(gPlayer.message),
                      end && end->reason == MPV_END_FILE_REASON_EOF ? t("player.ended") : t("player.stopped"));
             copyText(gPlayer.detail, sizeof(gPlayer.detail), detail);
+            if (end && end->reason == MPV_END_FILE_REASON_EOF && !gPlayer.loopPlayback) {
+                gPlayer.hudVisible = 1;
+                gPlayer.overlayFrames = 240;
+                if (gPlayer.hudAnim < 0.02f) gPlayer.hudAnim = 0.02f;
+            }
             unlockScan();
             pushPlayerLog(detail);
         } else if (event->event_id == MPV_EVENT_SHUTDOWN) {

@@ -46,12 +46,14 @@ if(BUILD_VITA_PLAYER)
         src/vita/Image/ImageViewer.cpp
         src/vita/Network/Runtime.cpp
         src/vita/Player/PlayerMessages.cpp
+        src/vita/Player/PlayerHudLayout.cpp
         src/vita/Player/PlayerOverlay.cpp
         src/vita/Player/SmbStream.cpp
         src/vita/Player/VideoPlayer.cpp
         src/vita/UI/ImeInput.cpp
         src/vita/UI/Input.cpp
         src/vita/UI/Screens.cpp
+        src/vita/UI/Theme.cpp
         src/vita/UI/Widgets.cpp
         src/vita/Utils/FileTypes.cpp
         src/vita/Utils/Json.cpp
@@ -113,6 +115,7 @@ if(BUILD_VITA_PLAYER)
         SceIme_stub
         SceCtrl_stub
         SceTouch_stub
+        SceMotion_stub
         SceAppUtil_stub
         ScePower_stub
         ScePgf_stub
@@ -126,8 +129,8 @@ if(BUILD_VITA_PLAYER)
     set(VITA_MKSFOEX_FLAGS "${VITA_MKSFOEX_FLAGS} -d ATTRIBUTE2=12")
 
     vita_create_self(vita_smb_player.self vita_smb_player UNSAFE NOASLR)
-    vita_create_vpk(vita_smb_player_v0.03.vpk "VSMB00001" vita_smb_player.self
-        VERSION "00.03"
+    vita_create_vpk(vita_smb_player_v0.04.vpk "VSMB00001" vita_smb_player.self
+        VERSION "00.04"
         NAME "SMB Player"
         FILE ${CMAKE_SOURCE_DIR}/third_party/nanovg-gxm/example/Roboto-Regular.ttf Roboto-Regular.ttf
         FILE ${CMAKE_SOURCE_DIR}/assets/fonts/CJK.ttf CJK.ttf
@@ -135,11 +138,11 @@ if(BUILD_VITA_PLAYER)
         FILE ${CMAKE_SOURCE_DIR}/assets/i18n/en-US/vita_smb_player.json i18n/en-US/vita_smb_player.json
     )
 
-    add_custom_command(TARGET vita_smb_player_v0.03.vpk-vpk POST_BUILD
+    add_custom_command(TARGET vita_smb_player_v0.04.vpk-vpk POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/releases
         COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_BINARY_DIR}/vita_smb_player_v0.03.vpk
-            ${CMAKE_SOURCE_DIR}/releases/vita_smb_player_v0.03.vpk
+            ${CMAKE_CURRENT_BINARY_DIR}/vita_smb_player_v0.04.vpk
+            ${CMAKE_SOURCE_DIR}/releases/vita_smb_player_v0.04.vpk
         COMMENT "Copying VPK to releases/"
     )
 endif()

@@ -41,8 +41,6 @@
 #include <cmath>
 
 int Application::run(SceSize, void*) {
-    sceClibPrintf("[vita-smb-player] start\n");
-
     scePowerSetArmClockFrequency(444);
     scePowerSetBusClockFrequency(222);
     scePowerSetGpuClockFrequency(222);
@@ -64,8 +62,6 @@ int Application::run(SceSize, void*) {
     setScanMessage(ScanIdle, t("scan.idle"));
 
     RuntimeStatus runtime = probeLinkedLibraries();
-    sceClibPrintf("[vita-smb-player] libsmb2 context: %s\n", runtime.smb2ContextOk ? "ok" : "failed");
-    sceClibPrintf("[vita-smb-player] mpv client api: %lu\n", runtime.mpvClientApi);
 
     const bool networkOk = initNetwork();
     if (!networkOk) {
@@ -124,6 +120,7 @@ int Application::run(SceSize, void*) {
     int downHoldFrames = 0;
     int leftHoldFrames = 0;
     int rightHoldFrames = 0;
+    int actionPulseFrames = 0;
     AppMode mode = ModeConnect;
     AppMode hiddenReturnMode = ModeConnect;
     int hiddenReturnSelected = 0;
@@ -131,6 +128,7 @@ int Application::run(SceSize, void*) {
     bool pendingBrowserFocusRestore = false;
     int pendingBrowserSelected = 0;
     int pendingBrowserListTop = 0;
+    bool listTouchFocusFrozen = false;
 
     while (!quit) {
         ++gUiFrame;
@@ -153,9 +151,13 @@ int Application::run(SceSize, void*) {
             gUiTouchScrollCarry = 0.0f;
             gUiPinchPrev = false;
             gUiTouchGesture = false;
+            listTouchFocusFrozen = false;
         }
 
         pollMpvEvents();
+        if (mode == ModePlayer) {
+            updateMpvAutoRotation();
+        }
         updateImeDialog();
 
         ScanState snapshot = {};
@@ -173,6 +175,24 @@ int Application::run(SceSize, void*) {
         const bool openHiddenPressed = !gImeOpen &&
             (mode == ModeConnect || mode == ModeBrowser) &&
             pressed(pad.buttons, previousPad.buttons, SCE_CTRL_LTRIGGER);
+        const float uiTouchDx = gUiTouchLastX - gUiTouchStartX;
+        const float uiTouchDy = gUiTouchLastY - gUiTouchStartY;
+        const bool uiTouchTap = uiTouchEnded && uiTouchDx * uiTouchDx + uiTouchDy * uiTouchDy < 24.0f * 24.0f;
+        const bool actionPressed = !gImeOpen &&
+            (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CIRCLE) ||
+             pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CROSS) ||
+             pressed(pad.buttons, previousPad.buttons, SCE_CTRL_START) ||
+             pressed(pad.buttons, previousPad.buttons, SCE_CTRL_SELECT) ||
+             pressed(pad.buttons, previousPad.buttons, SCE_CTRL_SQUARE) ||
+             pressed(pad.buttons, previousPad.buttons, SCE_CTRL_TRIANGLE) ||
+             pressed(pad.buttons, previousPad.buttons, SCE_CTRL_LTRIGGER) ||
+             pressed(pad.buttons, previousPad.buttons, SCE_CTRL_RTRIGGER) ||
+             uiTouchTap);
+        if (actionPressed) {
+            actionPulseFrames = 8;
+        } else if (actionPulseFrames > 0) {
+            --actionPulseFrames;
+        }
 
         if (gImeOpen) {
             consumedCross = true;
@@ -280,12 +300,34 @@ int Application::run(SceSize, void*) {
                 if (selected >= gHiddenItemCount) selected = gHiddenItemCount > 0 ? gHiddenItemCount - 1 : 0;
                 keepSelectedVisible(selected, gHiddenItemCount, &listTop);
             }
+            if (uiTouchStarted && !multiTouching) {
+                const int hit = listIndexAtPoint(touchX, touchY, listTop, gHiddenItemCount);
+                if (hit >= 0) selected = hit;
+            }
             if (touching && gUiTouchPrev && !multiTouching) {
-                gUiTouchScrollCarry += -(touchY - gUiTouchLastY);
-                const int rows = static_cast<int>(gUiTouchScrollCarry / 38.0f);
-                if (rows != 0) {
-                    scrollListByRows(rows, gHiddenItemCount, &selected, &listTop);
-                    gUiTouchScrollCarry -= rows * 38.0f;
+                const float dragY = touchY - gUiTouchLastY;
+                const int maxTop = gHiddenItemCount > kVisibleEntries ? gHiddenItemCount - kVisibleEntries : 0;
+                const bool blockedDrag = (dragY > 0.0f && listTop <= 0) || (dragY < 0.0f && listTop >= maxTop);
+                if (blockedDrag) {
+                    gUiTouchScrollCarry = 0.0f;
+                    listTouchFocusFrozen = true;
+                } else {
+                    gUiTouchScrollCarry += -dragY;
+                    const int rows = static_cast<int>(gUiTouchScrollCarry / kListRowPitch);
+                    if (rows != 0) {
+                        if (listTouchFocusFrozen) {
+                            listTop += rows;
+                            if (listTop < 0) listTop = 0;
+                            if (listTop > maxTop) listTop = maxTop;
+                        } else {
+                            scrollListByRows(rows, gHiddenItemCount, &selected, &listTop);
+                        }
+                        gUiTouchScrollCarry -= rows * kListRowPitch;
+                    }
+                    if (!listTouchFocusFrozen) {
+                        const int hit = listIndexAtPoint(touchX, touchY, listTop, gHiddenItemCount);
+                        if (hit >= 0) selected = hit;
+                    }
                 }
             }
             if (uiTouchEnded) {
@@ -307,11 +349,11 @@ int Application::run(SceSize, void*) {
         } else if (mode == ModeBrowser) {
             if (upAction && selected > 0) {
                 --selected;
-                keepSelectedVisible(selected, snapshot.count, &listTop);
+                keepSelectedNearListCenter(selected, snapshot.count, &listTop);
             }
             if (downAction && selected + 1 < snapshot.count) {
                 ++selected;
-                keepSelectedVisible(selected, snapshot.count, &listTop);
+                keepSelectedNearListCenter(selected, snapshot.count, &listTop);
             }
             if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_TRIANGLE) &&
                 (gBrowserSource == SourceLocal || networkOk)) {
@@ -341,12 +383,34 @@ int Application::run(SceSize, void*) {
                                         window->context, window->shader_patcher,
                                         static_cast<SceGxmMultisampleMode>(SCE_GXM_MULTISAMPLE_NONE));
             }
+            if (uiTouchStarted && !multiTouching && snapshot.phase == ScanReady) {
+                const int hit = listIndexAtPoint(touchX, touchY, listTop, snapshot.count);
+                if (hit >= 0) selected = hit;
+            }
             if (touching && gUiTouchPrev && !multiTouching) {
-                gUiTouchScrollCarry += -(touchY - gUiTouchLastY);
-                const int rows = static_cast<int>(gUiTouchScrollCarry / 38.0f);
-                if (rows != 0) {
-                    scrollListByRows(rows, snapshot.count, &selected, &listTop);
-                    gUiTouchScrollCarry -= rows * 38.0f;
+                const float dragY = touchY - gUiTouchLastY;
+                const int maxTop = snapshot.count > kVisibleEntries ? snapshot.count - kVisibleEntries : 0;
+                const bool blockedDrag = (dragY > 0.0f && listTop <= 0) || (dragY < 0.0f && listTop >= maxTop);
+                if (blockedDrag) {
+                    gUiTouchScrollCarry = 0.0f;
+                    listTouchFocusFrozen = true;
+                } else {
+                    gUiTouchScrollCarry += -dragY;
+                    const int rows = static_cast<int>(gUiTouchScrollCarry / kListRowPitch);
+                    if (rows != 0) {
+                        if (listTouchFocusFrozen) {
+                            listTop += rows;
+                            if (listTop < 0) listTop = 0;
+                            if (listTop > maxTop) listTop = maxTop;
+                        } else {
+                            scrollListByRows(rows, snapshot.count, &selected, &listTop);
+                        }
+                        gUiTouchScrollCarry -= rows * kListRowPitch;
+                    }
+                    if (!listTouchFocusFrozen) {
+                        const int hit = listIndexAtPoint(touchX, touchY, listTop, snapshot.count);
+                        if (hit >= 0) selected = hit;
+                    }
                 }
             }
             if (uiTouchEnded) {
@@ -457,34 +521,51 @@ int Application::run(SceSize, void*) {
                 }
             }
         } else {
-            if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CIRCLE) &&
+            if (!playerSnapshot.settingsVisible &&
+                pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CIRCLE) &&
                 !playerSnapshot.waitingForValidation) {
                 showPlayerOverlay();
                 setMpvPause(!gPlayer.paused);
             }
+            if (!playerSnapshot.settingsVisible &&
+                pressed(pad.buttons, previousPad.buttons, SCE_CTRL_SQUARE)) {
+                togglePlayerOverlay();
+            }
             if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_TRIANGLE)) {
-                cycleMpvRotation();
+                toggleMpvAutoRotate();
             }
-            if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_UP)) {
-                showPlayerOverlay();
+            if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_SELECT)) {
+                toggleMpvLoop();
             }
-            if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_DOWN)) {
-                hidePlayerOverlay();
+            if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_START)) {
+                togglePlayerSettingsPanel();
             }
-            if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_LEFT)) {
+            if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_LTRIGGER)) {
+                adjustMpvSpeed(-1);
+            }
+            if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_RTRIGGER)) {
+                adjustMpvSpeed(1);
+            }
+            if (!playerSnapshot.settingsVisible &&
+                pressed(pad.buttons, previousPad.buttons, SCE_CTRL_LEFT)) {
                 showPlayerOverlay();
                 seekMpvRelative(-10.0);
             }
-            if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_RIGHT)) {
+            if (!playerSnapshot.settingsVisible &&
+                pressed(pad.buttons, previousPad.buttons, SCE_CTRL_RIGHT)) {
                 showPlayerOverlay();
                 seekMpvRelative(10.0);
             }
             if (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CROSS)) {
-                stopCurrentPlayback();
-                mode = ModeBrowser;
+                if (playerSnapshot.settingsVisible) {
+                    togglePlayerSettingsPanel();
+                } else {
+                    stopCurrentPlayback();
+                    mode = ModeBrowser;
+                }
                 consumedCross = true;
             }
-            if (handlePlayerTouch(touching, touchX, touchY)) {
+            if (handlePlayerTouch(touching, touchX, touchY, vg, font)) {
                 stopCurrentPlayback();
                 mode = ModeBrowser;
             }
@@ -493,6 +574,13 @@ int Application::run(SceSize, void*) {
         if (mode != ModePlayer) {
             gTouchPrev = false;
             gTouchDraggingBar = false;
+            gTouchDraggingSpeed = false;
+            gTouchSwipeSeeking = false;
+            gTouchStartedOnPlayerControl = false;
+            gTouchHudAction = 0;
+            lockScan();
+            gPlayer.swipeSeeking = 0;
+            unlockScan();
         }
         if (mode == ModePlayer) {
             gUiTouchPrev = false;
@@ -526,7 +614,9 @@ int Application::run(SceSize, void*) {
         }
 
         if (!gImeOpen && mode == ModeConnect && pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CROSS)) {
-            quit = true;
+            mode = ModeExit;
+        } else if (!gImeOpen && mode == ModeExit && pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CIRCLE)) {
+            mode = ModeConnect;
         } else if (!gImeOpen && mode == ModeHidden && pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CROSS)) {
             mode = hiddenReturnMode;
             selected = hiddenReturnMode == ModeBrowser ? hiddenReturnSelected : 0;
@@ -548,11 +638,13 @@ int Application::run(SceSize, void*) {
 
         previousPad = pad;
 
-        if (mode == ModePlayer && !gPlayer.paused) {
+        if (mode == ModePlayer) {
             tickPlayerOverlay();
+        }
+        if (mode == ModePlayer && !gPlayer.paused) {
             sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DEFAULT);
         }
-        renderMpvToFbo();
+        renderMpvToFbo(mode == ModePlayer);
 
         gxmBeginFrame();
         gxmClear();
@@ -563,7 +655,7 @@ int Application::run(SceSize, void*) {
         imageSnapshot = gImage;
         unlockScan();
         renderUi(vg, font, runtime, snapshot, playerSnapshot, imageSnapshot,
-                 mode, selected, listTop, connectFocus);
+                 mode, selected, listTop, connectFocus, actionPulseFrames);
         nvgEndFrame(vg);
 
         gxmEndFrame();
@@ -584,6 +676,11 @@ int Application::run(SceSize, void*) {
         gxmSwapBuffer();
     }
 
+    // Vita3K 0.2.1 on macOS can crash while tearing down emulated threads,
+    // GXM, and logger state during app exit. Let the process cleanup path own
+    // final resource release instead of explicitly destroying subsystems here.
+    return 0;
+
     bool scanStillRunning = false;
     bool copyStillRunning = false;
     lockScan();
@@ -598,12 +695,9 @@ int Application::run(SceSize, void*) {
     if (!scanStillRunning && !copyStillRunning) {
         if (networkOk) shutdownNetwork();
         if (gScanMutex >= 0) sceKernelDeleteMutex(gScanMutex);
-    } else {
-        sceClibPrintf("[vita-smb-player] exiting while background work is still running\n");
     }
     sceAppUtilShutdown();
 
-    sceClibPrintf("[vita-smb-player] exit\n");
     return 0;
 }
 

@@ -119,9 +119,23 @@
   },
   "player": {
     "back": "X Back",
-    "rotate": {
-      "fmt": "△ Rotate %d°"
+    "orientation": {
+      "portrait": "Portrait",
+      "landscape": "Landscape"
     },
+    "speed": {
+      "fmt": "%.2gx"
+    },
+    "speed_hint": "Speed",
+    "settings": "Settings",
+    "loop": "Loop",
+    "loop_playback": "Loop playback",
+    "rotation": "Orientation",
+    "auto_rotate": "Auto rotate",
+    "auto_rotate_hint": "Follow Vita orientation",
+    "auto_rotate_on": "Auto rotate on",
+    "auto_rotate_off": "Auto rotate off",
+    "auto_rotate_unavailable": "Auto rotate unavailable",
     "loading": "Loading...",
     "waiting": "Waiting for video...",
     "playing": "Playing",

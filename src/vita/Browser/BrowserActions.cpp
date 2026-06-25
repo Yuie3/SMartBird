@@ -44,6 +44,20 @@ void keepSelectedVisible(int selected, int count, int* listTop) {
     if (*listTop < 0) *listTop = 0;
 }
 
+void keepSelectedNearListCenter(int selected, int count, int* listTop) {
+    if (!listTop) return;
+    if (count <= kVisibleEntries) {
+        *listTop = 0;
+        return;
+    }
+
+    const int maxTop = count - kVisibleEntries;
+    const int centerRow = (kVisibleEntries - 1) / 2;
+    *listTop = selected - centerRow;
+    if (*listTop > maxTop) *listTop = maxTop;
+    if (*listTop < 0) *listTop = 0;
+}
+
 void scrollListByRows(int rows, int count, int* selected, int* listTop) {
     if (!selected || !listTop || rows == 0 || count <= 0) return;
     const int maxTop = count > kVisibleEntries ? count - kVisibleEntries : 0;

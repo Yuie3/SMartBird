@@ -17,7 +17,10 @@ void drawPlayGlyph(NVGcontext* vg, float x, float y, NVGcolor color);
 void drawPhotoGlyph(NVGcontext* vg, float x, float y, NVGcolor color);
 void drawSmallBadge(NVGcontext* vg, int font, float x, float y, float w,
                     const char* label, NVGcolor bg, NVGcolor fg);
+void drawListFocus(NVGcontext* vg, float top, float pulse);
+void drawEntryRowAt(NVGcontext* vg, int font, const SmbEntry& entry, float top, bool selected);
 void drawEntryRow(NVGcontext* vg, int font, const SmbEntry& entry, int row, bool selected);
+void drawHiddenRowAt(NVGcontext* vg, int font, const HiddenItem& item, float top, bool selected);
 void drawHiddenRow(NVGcontext* vg, int font, const HiddenItem& item, int row, bool selected);
 void drawCopyProgress(NVGcontext* vg, int font, const CopyState& copy);
 void drawConnectRow(NVGcontext* vg, int font, float y, const char* label, const char* value, bool focused);
