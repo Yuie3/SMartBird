@@ -2,9 +2,9 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-vpk="${1:-"$repo_root/releases/vita_smb_player_v0.04.vpk"}"
+vpk="${1:-"$repo_root/releases/SMartBird.vpk"}"
 vita3k_root="${VITA3K_ROOT:-"$HOME/Library/Application Support/Vita3K/Vita3K"}"
-title_id="${VITA3K_TITLE_ID:-VSMB00001}"
+title_id="${VITA3K_TITLE_ID:-SMARTBIRD}"
 app_dir="$vita3k_root/fs/ux0/app/$title_id"
 
 if [[ ! -f "$vpk" ]]; then

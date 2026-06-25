@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(vita_smb_player LANGUAGES C CXX)
+project(SMartBird LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,6 +15,14 @@ endif()
 if(BUILD_VITA_PLAYER)
     include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
     find_package(PkgConfig REQUIRED)
+
+    set(APP_TARGET SMartBird)
+    set(APP_TITLE "SMartBird")
+    set(APP_TITLE_ID "SMARTBIRD")
+    set(APP_VERSION "0.0.5")
+    set(APP_VITA_VERSION "00.05")
+    set(APP_VPK_VERSIONED "${APP_TARGET}_v${APP_VERSION}.vpk")
+    set(APP_VPK_LATEST "${APP_TARGET}.vpk")
 
     pkg_check_modules(MPV REQUIRED mpv)
     pkg_check_modules(SMB2 REQUIRED libsmb2)
@@ -32,7 +40,7 @@ if(BUILD_VITA_PLAYER)
         @ONLY
     )
 
-    add_executable(vita_smb_player
+    add_executable(${APP_TARGET}
         src/vita/App.cpp
         src/vita/main.cpp
         src/vita/Browser/BrowserActions.cpp
@@ -62,7 +70,7 @@ if(BUILD_VITA_PLAYER)
         ${nanovg_src}/nanovg.c
     )
 
-    target_include_directories(vita_smb_player PRIVATE
+    target_include_directories(${APP_TARGET} PRIVATE
         src/vita
         ${CMAKE_BINARY_DIR}/generated
         ${nanovg_src}
@@ -70,7 +78,7 @@ if(BUILD_VITA_PLAYER)
         ${SMB2_INCLUDE_DIRS}
     )
 
-    target_compile_definitions(vita_smb_player PRIVATE
+    target_compile_definitions(${APP_TARGET} PRIVATE
         PLATFORM_VITA=1
         __psp2__
         __PSV__
@@ -81,18 +89,18 @@ if(BUILD_VITA_PLAYER)
         COMPILE_DEFINITIONS "NANOVG_GXM_IMPLEMENTATION;NANOVG_GXM_UTILS_IMPLEMENTATION"
     )
 
-    target_compile_options(vita_smb_player PRIVATE
+    target_compile_options(${APP_TARGET} PRIVATE
         -O2 -g -fno-omit-frame-pointer -ffast-math -mtune=cortex-a9 -mfpu=neon
         ${MPV_CFLAGS_OTHER}
         ${SMB2_CFLAGS_OTHER}
     )
 
-    target_link_directories(vita_smb_player PRIVATE
+    target_link_directories(${APP_TARGET} PRIVATE
         ${MPV_LIBRARY_DIRS}
         ${SMB2_LIBRARY_DIRS}
     )
 
-    target_link_libraries(vita_smb_player PRIVATE
+    target_link_libraries(${APP_TARGET} PRIVATE
         -Wl,--whole-archive pthread -Wl,--no-whole-archive
         "-Wl,--start-group"
         ${SMB2_STATIC_LIBRARIES}
@@ -128,21 +136,24 @@ if(BUILD_VITA_PLAYER)
 
     set(VITA_MKSFOEX_FLAGS "${VITA_MKSFOEX_FLAGS} -d ATTRIBUTE2=12")
 
-    vita_create_self(vita_smb_player.self vita_smb_player UNSAFE NOASLR)
-    vita_create_vpk(vita_smb_player_v0.04.vpk "VSMB00001" vita_smb_player.self
-        VERSION "00.04"
-        NAME "SMB Player"
+    vita_create_self(${APP_TARGET}.self ${APP_TARGET} UNSAFE NOASLR)
+    vita_create_vpk(${APP_VPK_VERSIONED} ${APP_TITLE_ID} ${APP_TARGET}.self
+        VERSION ${APP_VITA_VERSION}
+        NAME ${APP_TITLE}
         FILE ${CMAKE_SOURCE_DIR}/third_party/nanovg-gxm/example/Roboto-Regular.ttf Roboto-Regular.ttf
         FILE ${CMAKE_SOURCE_DIR}/assets/fonts/CJK.ttf CJK.ttf
         FILE ${CMAKE_SOURCE_DIR}/assets/i18n/zh-Hant/vita_smb_player.json i18n/zh-Hant/vita_smb_player.json
         FILE ${CMAKE_SOURCE_DIR}/assets/i18n/en-US/vita_smb_player.json i18n/en-US/vita_smb_player.json
     )
 
-    add_custom_command(TARGET vita_smb_player_v0.04.vpk-vpk POST_BUILD
+    add_custom_command(TARGET ${APP_VPK_VERSIONED}-vpk POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/releases
         COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_BINARY_DIR}/vita_smb_player_v0.04.vpk
-            ${CMAKE_SOURCE_DIR}/releases/vita_smb_player_v0.04.vpk
+            ${CMAKE_CURRENT_BINARY_DIR}/${APP_VPK_VERSIONED}
+            ${CMAKE_SOURCE_DIR}/releases/${APP_VPK_VERSIONED}
+        COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_CURRENT_BINARY_DIR}/${APP_VPK_VERSIONED}
+            ${CMAKE_SOURCE_DIR}/releases/${APP_VPK_LATEST}
         COMMENT "Copying VPK to releases/"
     )
 endif()

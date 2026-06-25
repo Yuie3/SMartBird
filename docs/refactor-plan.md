@@ -1,4 +1,4 @@
-# vita-smb-player Refactor Plan
+# SMartBird Refactor Plan
 
 本文件記錄 `src/vita/main.cpp` 的拆分策略。重構目標是改善模組邊界，但不改變既有功能與行為。
 

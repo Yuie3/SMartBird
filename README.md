@@ -1,32 +1,41 @@
-# vita-smb-player
+# SMartBird
 
-PS Vita 用的 SMB / 本機媒體播放器。目標是用簡單的介面瀏覽 SMB 分享或 Vita 本機資料夾，播放影片、查看圖片，並提供基本的複製與隱藏項目管理。
+SMartBird 是 PS Vita 用的 SMB / 本機媒體播放器。它可以瀏覽 SMB 分享與 Vita 本機資料夾，播放影片、檢視圖片，並提供檔案複製與隱藏項目管理。
 
-目前版本是第一版 MVP，重點放在可用的 SMB 瀏覽、影片播放、圖片檢視與可重現建置流程。
+目前版本：`0.0.5`
 
 ## 功能
 
-- 連線到 SMB 分享並瀏覽資料夾。
-- 瀏覽 Vita 本機路徑，預設入口是 `ux0:`，可在啟動頁修改。
-- 播放常見影片檔案。
-- 檢視圖片，支援平移、縮放、旋轉、上下張與 HUD 開關。
+- SMB 分享瀏覽與本機路徑瀏覽，預設本機入口為 `ux0:`。
+- 影片播放，支援 HUD、倍速、循環播放、自動旋轉、進度列拖曳與手勢快速跳轉。
+- 圖片檢視，支援平移、縮放、旋轉、上一張 / 下一張與 HUD 開關。
 - 從 SMB 複製檔案到本機，並顯示進度條。
-- 複製目標會依類型自動分流：
-  - 影片：`ux0:/video`
-  - 圖片：`ux0:/picture`
-- 可隱藏不想顯示的檔案或資料夾，並可在隱藏項目管理頁取消隱藏。
+- 複製目標依類型自動分流：影片到 `ux0:/video`，圖片到 `ux0:/picture`。
+- 隱藏不想顯示的檔案或資料夾，並可在隱藏項目管理頁取消隱藏。
 - 啟動頁會記住上次輸入的 SMB 連線資訊與本機入口路徑。
 - 內建繁體中文與英文 i18n 資源。
 
 ## 下載與安裝
 
-第一版 VPK 會輸出在：
+最新版 VPK：
 
 ```text
-releases/vita_smb_player_v0.04.vpk
+releases/SMartBird.vpk
+```
+
+帶版本號的 VPK：
+
+```text
+releases/SMartBird_v0.0.5.vpk
 ```
 
 把 VPK 安裝到已可執行自製程式的 PS Vita 上即可啟動。
+
+App 的 Vita Title ID 是：
+
+```text
+SMARTBIRD
+```
 
 執行時資料會儲存在：
 
@@ -39,26 +48,16 @@ ux0:/data/vita-smb-player/
 - `connection.txt`：SMB 連線資訊與本機入口路徑。
 - `hidden.json`：使用者隱藏的檔案與資料夾。
 
-## 使用方式
+## 操作方式
 
 ### 啟動頁
 
-啟動後會進入連線頁，可設定：
-
-- SMB 伺服器
-- 分享名稱
-- SMB 路徑
-- 使用者
-- 密碼
-- 網域
-- 本機路徑
-
-操作：
+啟動後會進入連線頁，可設定 SMB 伺服器、分享名稱、路徑、使用者、密碼、網域與本機路徑。
 
 | 按鍵 | 功能 |
 | --- | --- |
 | 方向鍵上下 | 移動欄位焦點 |
-| 方向鍵左右 | 在底部三個按鈕間移動 |
+| 方向鍵左右 | 在底部按鈕間移動 |
 | `○` | 編輯欄位，或執行目前選到的按鈕 |
 | `START` | 連線到 SMB |
 | `SELECT` | 進入本機 |
@@ -66,8 +65,6 @@ ux0:/data/vita-smb-player/
 | `×` | 離開程式 |
 
 ### 檔案瀏覽
-
-操作：
 
 | 按鍵 | 功能 |
 | --- | --- |
@@ -86,25 +83,26 @@ ux0:/data/vita-smb-player/
 
 ### 影片播放
 
-操作：
-
 | 按鍵 | 功能 |
 | --- | --- |
 | `○` | 暫停 / 繼續 |
-| `×` | 停止播放並返回瀏覽器 |
-| `△` | 旋轉播放畫面 |
-| 方向鍵上 | 顯示播放器 HUD |
-| 方向鍵下 | 隱藏播放器 HUD |
+| `×` | 停止播放並返回瀏覽器；設定頁開啟時先關閉設定頁 |
+| `□` | 開關播放器 HUD |
+| `△` | 開關自動旋轉 |
+| `SELECT` | 開關循環播放 |
+| `START` | 開啟 / 關閉播放器設定 |
+| `L` / `R` | 降低 / 提高播放倍速 |
 | 方向鍵左 / 右 | 往前 / 往後跳 10 秒 |
 
 觸控操作：
 
-- 點一下顯示或隱藏操作介面。
-- 可點擊播放 / 暫停、快轉、倒轉與進度列。
+- 點一下畫面可顯示或隱藏 HUD。
+- 點擊 HUD 按鈕可播放 / 暫停、返回、快轉、倒轉、切換倍速、循環播放、自動旋轉與設定。
+- 拖曳底部進度列可跳到指定位置。
+- 在影片畫面水平滑動可快速跳轉；向右快轉，向左倒退。
+- 倍速按鈕會展開滑桿，可用觸控無級調整倍速。
 
 ### 圖片檢視
-
-操作：
 
 | 按鍵 | 功能 |
 | --- | --- |
@@ -145,13 +143,13 @@ ux0:/data/vita-smb-player/
 
 建置流程使用可重用的 Docker builder image：`vita-builder-gxm`。
 
-### 需求
+需求：
 
 - Docker
 - 可執行 `linux/amd64` container 的環境
 - 本 repo 內建的 `third_party/nanovg-gxm`
 
-### 建立 Builder Image
+建立 builder image：
 
 ```sh
 ./scripts/build-builder-image.sh
@@ -163,27 +161,19 @@ ux0:/data/vita-smb-player/
 xfangfang/wiliwili_psv_builder:latest-gxm
 ```
 
-並在 image 內建置 `libsmb2`，安裝到 VitaSDK 的 arm-vita-eabi prefix。
-
 可以指定 libsmb2 ref：
 
 ```sh
 LIBSMB2_REF=libsmb2-6.2 ./scripts/build-builder-image.sh
 ```
 
-### 驗證 Builder Image
+驗證 builder image：
 
 ```sh
 ./scripts/verify-builder.sh
 ```
 
-這會檢查：
-
-- `pkg-config --modversion libsmb2`
-- `pkg-config --libs --cflags libsmb2`
-- Vita toolchain 可 include 並 link `libsmb2`
-
-### 建置 VPK
+建置 VPK：
 
 ```sh
 ./scripts/build-vita-docker.sh
@@ -192,9 +182,10 @@ LIBSMB2_REF=libsmb2-6.2 ./scripts/build-builder-image.sh
 輸出：
 
 ```text
-build/vita/vita_smb_player.self
-build/vita/vita_smb_player_v0.04.vpk
-releases/vita_smb_player_v0.04.vpk
+build/vita/SMartBird.self
+build/vita/SMartBird_v0.0.5.vpk
+releases/SMartBird_v0.0.5.vpk
+releases/SMartBird.vpk
 ```
 
 可用環境變數覆蓋預設 SMB 設定：
@@ -216,7 +207,8 @@ SMB_DOMAIN= \
 ```text
 assets/                  字型與 i18n JSON
 docker/                  Vita builder Dockerfile
-scripts/                 建置與驗證腳本
+docs/                    開發與重構文件
+scripts/                 建置、驗證與 Vita3K 輔助腳本
 src/vita/                Vita App 原始碼
 third_party/nanovg-gxm/  NanoVG GXM renderer
 releases/                VPK 輸出

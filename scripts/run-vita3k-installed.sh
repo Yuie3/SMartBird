@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-title_id="${VITA3K_TITLE_ID:-VSMB00001}"
+title_id="${VITA3K_TITLE_ID:-SMARTBIRD}"
 vita3k_app="${VITA3K_APP:-/Applications/Vita3K.app}"
 vita3k_root="${VITA3K_ROOT:-"$HOME/Library/Application Support/Vita3K/Vita3K"}"
 log_level="${VITA3K_LOG_LEVEL:-6}"

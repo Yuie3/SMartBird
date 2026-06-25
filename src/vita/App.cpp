@@ -76,14 +76,14 @@ int Application::run(SceSize, void*) {
 
     NVGXMwindow* window = gxmCreateWindow(&gxmOpts);
     if (!window) {
-        sceClibPrintf("[vita-smb-player] gxmCreateWindow failed\n");
+        sceClibPrintf("[SMartBird] gxmCreateWindow failed\n");
         if (networkOk) shutdownNetwork();
         return 1;
     }
 
     NVGcontext* vg = nvgCreateGXM(window->context, window->shader_patcher, NVG_STENCIL_STROKES);
     if (!vg) {
-        sceClibPrintf("[vita-smb-player] nvgCreateGXM failed\n");
+        sceClibPrintf("[SMartBird] nvgCreateGXM failed\n");
         gxmDeleteWindow(window);
         if (networkOk) shutdownNetwork();
         return 1;
@@ -91,10 +91,10 @@ int Application::run(SceSize, void*) {
 
     int font = nvgCreateFont(vg, "sans", "app0:/CJK.ttf");
     if (font < 0) {
-        sceClibPrintf("[vita-smb-player] CJK font failed, using Roboto\n");
+        sceClibPrintf("[SMartBird] CJK font failed, using Roboto\n");
         font = nvgCreateFont(vg, "sans", "app0:/Roboto-Regular.ttf");
         if (font < 0) {
-            sceClibPrintf("[vita-smb-player] failed to load bundled font\n");
+            sceClibPrintf("[SMartBird] failed to load bundled font\n");
             nvgDeleteGXM(vg);
             gxmDeleteWindow(window);
             if (networkOk) shutdownNetwork();

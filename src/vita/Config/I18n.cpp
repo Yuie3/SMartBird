@@ -27,7 +27,7 @@ struct Translation {
 UiLanguage gUiLanguage = UiZhTw;
 
 constexpr Translation kTranslations[] = {
-    {"app.title", "SMB Player", "SMB Player"},
+    {"app.title", "SMartBird", "SMartBird"},
     {"login.title", "登入", "Login"},
     {"field.server", "伺服器", "Server"},
     {"field.share", "分享名稱", "Share"},
