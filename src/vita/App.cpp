@@ -35,10 +35,74 @@
 #include "UI/ImeInput.hpp"
 #include "UI/Input.hpp"
 #include "UI/Screens.hpp"
+#include "Utils/FileTypes.hpp"
+#include "Utils/Math.hpp"
 
 #include <cstdio>
 #include <cstring>
 #include <cmath>
+
+namespace {
+
+bool isPlayableVideoEntry(const SmbEntry& entry) {
+    return !entry.directory && isVideoFile(entry.name);
+}
+
+int countPlayableVideos(const ScanState& scan) {
+    int count = 0;
+    if (scan.phase != ScanReady) return 0;
+    for (int i = 0; i < scan.count; ++i) {
+        if (isPlayableVideoEntry(scan.entries[i])) ++count;
+    }
+    return count;
+}
+
+int findPlaybackNeighbor(const ScanState& scan, int selected, int direction, bool wrap) {
+    if (scan.phase != ScanReady || scan.count <= 0 || direction == 0) return -1;
+    int i = selected;
+    for (int steps = 0; steps < scan.count; ++steps) {
+        i += direction > 0 ? 1 : -1;
+        if (i < 0) {
+            if (!wrap) return -1;
+            i = scan.count - 1;
+        } else if (i >= scan.count) {
+            if (!wrap) return -1;
+            i = 0;
+        }
+        if (isPlayableVideoEntry(scan.entries[i])) return i;
+    }
+    return -1;
+}
+
+int findRandomPlaybackIndex(const ScanState& scan, int selected) {
+    const int playableCount = countPlayableVideos(scan);
+    if (playableCount <= 0) return -1;
+    if (playableCount == 1) return isPlayableVideoEntry(scan.entries[selected]) ? selected : findPlaybackNeighbor(scan, selected, 1, true);
+
+    const int pick = gUiFrame % (playableCount - 1);
+    int seen = 0;
+    for (int i = 0; i < scan.count; ++i) {
+        if (i == selected || !isPlayableVideoEntry(scan.entries[i])) continue;
+        if (seen == pick) return i;
+        ++seen;
+    }
+    return findPlaybackNeighbor(scan, selected, 1, true);
+}
+
+bool playBrowserVideoAt(const ScanState& scan, int index, int* selected, int* listTop, AppMode* mode,
+                        NVGcontext* vg, SceGxmContext* gxmCtx, SceGxmShaderPatcher* patcher,
+                        SceGxmMultisampleMode msaa) {
+    if (!selected || !listTop || !mode) return false;
+    if (scan.phase != ScanReady || index < 0 || index >= scan.count) return false;
+    if (!isPlayableVideoEntry(scan.entries[index])) return false;
+    *selected = index;
+    keepSelectedVisible(*selected, scan.count, listTop);
+    playEntry(scan.entries[index], scan.source, gxmCtx, patcher, msaa, vg);
+    *mode = ModePlayer;
+    return true;
+}
+
+} // namespace
 
 int Application::run(SceSize, void*) {
     scePowerSetArmClockFrequency(444);
@@ -165,9 +229,42 @@ int Application::run(SceSize, void*) {
         lockScan();
         snapshot = gScanState;
         playerSnapshot = gPlayer;
+        int pendingPlayerAction = PlayerPendingNone;
+        const bool playbackEnded = mode == ModePlayer && gPlayer.playbackEnded != 0;
+        if (mode == ModePlayer) {
+            pendingPlayerAction = gPlayerPendingAction;
+            gPlayerPendingAction = PlayerPendingNone;
+            gPlayer.playbackEnded = 0;
+        }
         unlockScan();
 
+        if (mode == ModePlayer && snapshot.phase == ScanReady) {
+            int playbackTarget = -1;
+            if (pendingPlayerAction == PlayerPendingPrevious) {
+                playbackTarget = findPlaybackNeighbor(snapshot, selected, -1, true);
+            } else if (pendingPlayerAction == PlayerPendingNext) {
+                playbackTarget = playerSnapshot.shufflePlayback
+                    ? findRandomPlaybackIndex(snapshot, selected)
+                    : findPlaybackNeighbor(snapshot, selected, 1, true);
+            } else if (playbackEnded &&
+                       (playerSnapshot.repeatMode == PlayerRepeatAll || playerSnapshot.shufflePlayback)) {
+                playbackTarget = playerSnapshot.shufflePlayback
+                    ? findRandomPlaybackIndex(snapshot, selected)
+                    : findPlaybackNeighbor(snapshot, selected, 1, true);
+            }
+
+            if (playbackTarget >= 0) {
+                playBrowserVideoAt(snapshot, playbackTarget, &selected, &listTop, &mode, vg,
+                                   window->context, window->shader_patcher,
+                                   static_cast<SceGxmMultisampleMode>(SCE_GXM_MULTISAMPLE_NONE));
+                lockScan();
+                playerSnapshot = gPlayer;
+                unlockScan();
+            }
+        }
+
         bool consumedCross = false;
+        bool browserStartedScanThisFrame = false;
         const bool upAction = !gImeOpen && repeatButton(pad.buttons, previousPad.buttons, SCE_CTRL_UP, &upHoldFrames);
         const bool downAction = !gImeOpen && repeatButton(pad.buttons, previousPad.buttons, SCE_CTRL_DOWN, &downHoldFrames);
         const bool leftAction = !gImeOpen && repeatButton(pad.buttons, previousPad.buttons, SCE_CTRL_LEFT, &leftHoldFrames);
@@ -178,6 +275,17 @@ int Application::run(SceSize, void*) {
         const float uiTouchDx = gUiTouchLastX - gUiTouchStartX;
         const float uiTouchDy = gUiTouchLastY - gUiTouchStartY;
         const bool uiTouchTap = uiTouchEnded && uiTouchDx * uiTouchDx + uiTouchDy * uiTouchDy < 24.0f * 24.0f;
+        if (mode != ModeBrowser) {
+            gUiBackSwipeActive = 0;
+            gUiBackSwipeDirection = 0;
+            gUiBackSwipeProgress = 0.0f;
+        } else if (!touching && !gUiBackSwipeActive && gUiBackSwipeProgress > 0.0f) {
+            gUiBackSwipeProgress *= 0.70f;
+            if (gUiBackSwipeProgress < 0.01f) {
+                gUiBackSwipeProgress = 0.0f;
+                gUiBackSwipeDirection = 0;
+            }
+        }
         const bool actionPressed = !gImeOpen &&
             (pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CIRCLE) ||
              pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CROSS) ||
@@ -302,7 +410,10 @@ int Application::run(SceSize, void*) {
             }
             if (uiTouchStarted && !multiTouching) {
                 const int hit = listIndexAtPoint(touchX, touchY, listTop, gHiddenItemCount);
-                if (hit >= 0) selected = hit;
+                if (hit >= 0) {
+                    selected = hit;
+                    gUiSnapListMotionFrame = gUiFrame;
+                }
             }
             if (touching && gUiTouchPrev && !multiTouching) {
                 const float dragY = touchY - gUiTouchLastY;
@@ -385,9 +496,26 @@ int Application::run(SceSize, void*) {
             }
             if (uiTouchStarted && !multiTouching && snapshot.phase == ScanReady) {
                 const int hit = listIndexAtPoint(touchX, touchY, listTop, snapshot.count);
-                if (hit >= 0) selected = hit;
+                if (hit >= 0) {
+                    selected = hit;
+                    gUiSnapListMotionFrame = gUiFrame;
+                }
             }
             if (touching && gUiTouchPrev && !multiTouching) {
+                const float swipeDx = touchX - gUiTouchStartX;
+                const float swipeDy = touchY - gUiTouchStartY;
+                const float absSwipeDy = swipeDy >= 0.0f ? swipeDy : -swipeDy;
+                const bool edgeSwipeTracking = gUiTouchStartX <= 36.0f && swipeDx > 0.0f && swipeDx > absSwipeDy * 1.15f;
+                const bool edgeForwardTracking = gUiTouchStartX >= kWidth - 36.0f && swipeDx < 0.0f &&
+                    -swipeDx > absSwipeDy * 1.15f && hasForwardDirectory();
+                if (edgeSwipeTracking || edgeForwardTracking) {
+                    gUiBackSwipeActive = 1;
+                    gUiBackSwipeDirection = edgeForwardTracking ? -1 : 1;
+                    gUiBackSwipeProgress = clampFloat((edgeForwardTracking ? -swipeDx : swipeDx) / 160.0f, 0.0f, 1.0f);
+                    gUiTouchGesture = true;
+                }
+            }
+            if (touching && gUiTouchPrev && !multiTouching && !gUiBackSwipeActive) {
                 const float dragY = touchY - gUiTouchLastY;
                 const int maxTop = snapshot.count > kVisibleEntries ? snapshot.count - kVisibleEntries : 0;
                 const bool blockedDrag = (dragY > 0.0f && listTop <= 0) || (dragY < 0.0f && listTop >= maxTop);
@@ -416,13 +544,51 @@ int Application::run(SceSize, void*) {
             if (uiTouchEnded) {
                 const float dx = gUiTouchLastX - gUiTouchStartX;
                 const float dy = gUiTouchLastY - gUiTouchStartY;
-                if (dx * dx + dy * dy < 24.0f * 24.0f) {
+                const float absDy = dy >= 0.0f ? dy : -dy;
+                const bool edgeSwipeBack = gUiTouchStartX <= 36.0f && dx >= 92.0f && dx > absDy * 1.45f;
+                const bool edgeSwipeForward = gUiTouchStartX >= kWidth - 36.0f && dx <= -92.0f &&
+                    -dx > absDy * 1.45f && hasForwardDirectory();
+                if (edgeSwipeBack) {
+                    gUiBackSwipeActive = 0;
+                    gUiBackSwipeDirection = 0;
+                    gUiBackSwipeProgress = 0.0f;
+                    if (goParentDirectoryAndRememberForward(selected, listTop)) {
+                        if (popBrowserFocus(&pendingBrowserSelected, &pendingBrowserListTop)) {
+                            pendingBrowserFocusRestore = true;
+                        } else {
+                            selected = 0;
+                            listTop = 0;
+                            pendingBrowserFocusRestore = false;
+                        }
+                        startScan();
+                        browserStartedScanThisFrame = true;
+                    } else {
+                        mode = ModeConnect;
+                    }
+                    consumedCross = true;
+                } else if (edgeSwipeForward) {
+                    gUiBackSwipeActive = 0;
+                    gUiBackSwipeDirection = 0;
+                    gUiBackSwipeProgress = 0.0f;
+                    if (goForwardDirectory(&pendingBrowserSelected, &pendingBrowserListTop)) {
+                        pendingBrowserFocusRestore = true;
+                        selected = 0;
+                        listTop = 0;
+                        startScan();
+                        browserStartedScanThisFrame = true;
+                    }
+                } else if (dx * dx + dy * dy < 24.0f * 24.0f) {
+                    gUiBackSwipeActive = 0;
+                    gUiBackSwipeDirection = 0;
                     const int hit = listIndexAtPoint(gUiTouchLastX, gUiTouchLastY, listTop, snapshot.count);
                     if (hit >= 0) {
                         openBrowserEntryAtIndex(snapshot, hit, &selected, &listTop, &mode, vg,
                                                 window->context, window->shader_patcher,
                                                 static_cast<SceGxmMultisampleMode>(SCE_GXM_MULTISAMPLE_NONE));
                     }
+                } else {
+                    gUiBackSwipeActive = 0;
+                    gUiBackSwipeDirection = 0;
                 }
             }
         } else if (mode == ModeImage) {
@@ -596,7 +762,7 @@ int Application::run(SceSize, void*) {
         }
 
         if (mode == ModeBrowser) {
-            if (pendingBrowserFocusRestore && snapshot.phase != ScanLoading) {
+            if (pendingBrowserFocusRestore && !browserStartedScanThisFrame && snapshot.phase != ScanLoading) {
                 if (snapshot.phase == ScanReady) {
                     selected = pendingBrowserSelected;
                     listTop = pendingBrowserListTop;
@@ -622,7 +788,7 @@ int Application::run(SceSize, void*) {
             selected = hiddenReturnMode == ModeBrowser ? hiddenReturnSelected : 0;
             listTop = hiddenReturnMode == ModeBrowser ? hiddenReturnListTop : 0;
         } else if (!gImeOpen && mode == ModeBrowser && pressed(pad.buttons, previousPad.buttons, SCE_CTRL_CROSS) && !consumedCross) {
-            if (goParentDirectory()) {
+            if (goParentDirectoryAndRememberForward(selected, listTop)) {
                 if (popBrowserFocus(&pendingBrowserSelected, &pendingBrowserListTop)) {
                     pendingBrowserFocusRestore = true;
                 } else {
@@ -631,6 +797,7 @@ int Application::run(SceSize, void*) {
                     pendingBrowserFocusRestore = false;
                 }
                 startScan();
+                browserStartedScanThisFrame = true;
             } else {
                 mode = ModeConnect;
             }

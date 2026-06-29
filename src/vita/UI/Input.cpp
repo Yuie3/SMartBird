@@ -72,7 +72,7 @@ bool handlePlayerTouch(bool touching, float x, float y, NVGcontext* vg, int font
     }
 
     const float barX = 46.0f;
-    const float barY = viewH - 82.0f;
+    const float barY = viewH - 94.0f;
     const float barW = viewW - 92.0f;
     const float settingsX = 0.0f;
     const float settingsY = 0.0f;
@@ -99,8 +99,8 @@ bool handlePlayerTouch(bool touching, float x, float y, NVGcontext* vg, int font
         (player.loading || player.paused || player.overlayFrames > 0 ||
          player.speedSliderVisible || player.settingsVisible || !player.hasFrame);
     const bool hitProgressBar = overlayShown && !player.settingsVisible &&
-        y >= barY - 18.0f && y <= barY + 18.0f &&
-        x >= barX - 16.0f && x <= barX + barW + 16.0f;
+        y >= barY - 30.0f && y <= barY + 30.0f &&
+        x >= barX - 22.0f && x <= barX + barW + 22.0f;
     const bool hitPopupSpeedSlider = overlayShown && player.speedSliderVisible &&
         hitRect(x, y, popupSpeedSliderX, popupSpeedSliderY, popupSpeedSliderW, 44.0f);
     const bool hitSettingsSpeedSlider = overlayShown && player.settingsVisible &&
@@ -216,8 +216,8 @@ bool handlePlayerTouch(bool touching, float x, float y, NVGcontext* vg, int font
             } else if (player.settingsVisible &&
                        hitRect(ux, uy, settingsX, settingsY, settingsW, settingsH)) {
                 showPlayerOverlay();
-            } else if (uy >= barY - 18.0f && uy <= barY + 18.0f &&
-                       ux >= barX - 16.0f && ux <= barX + barW + 16.0f) {
+            } else if (uy >= barY - 30.0f && uy <= barY + 30.0f &&
+                       ux >= barX - 22.0f && ux <= barX + barW + 22.0f) {
                 const float frac = clampFloat((ux - barX) / barW, 0.0f, 1.0f);
                 seekMpvAbsolute(frac * (player.durationSeconds > 0.0 ? player.durationSeconds : 0.0));
                 showPlayerOverlay();
@@ -240,6 +240,21 @@ bool handlePlayerTouch(bool touching, float x, float y, NVGcontext* vg, int font
                     showPlayerOverlay();
                     seekMpvRelative(10.0);
                     break;
+                case PlayerHudActionShuffle:
+                    toggleMpvShuffle();
+                    break;
+                case PlayerHudActionPrevious:
+                    lockScan();
+                    gPlayerPendingAction = PlayerPendingPrevious;
+                    unlockScan();
+                    showPlayerOverlay();
+                    break;
+                case PlayerHudActionNext:
+                    lockScan();
+                    gPlayerPendingAction = PlayerPendingNext;
+                    unlockScan();
+                    showPlayerOverlay();
+                    break;
                 case PlayerHudActionLoop:
                     toggleMpvLoop();
                     break;
@@ -250,7 +265,7 @@ bool handlePlayerTouch(bool touching, float x, float y, NVGcontext* vg, int font
                     toggleMpvAutoRotate();
                     break;
                 case PlayerHudActionSpeed:
-                    togglePlayerSpeedSlider();
+                    cycleMpvSpeedPreset();
                     break;
                 default:
                     break;

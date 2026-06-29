@@ -36,6 +36,18 @@ enum BrowserSource {
     SourceLocal,
 };
 
+enum PlayerRepeatMode {
+    PlayerRepeatOff = 0,
+    PlayerRepeatAll,
+    PlayerRepeatOne,
+};
+
+enum PlayerPendingAction {
+    PlayerPendingNone = 0,
+    PlayerPendingPrevious,
+    PlayerPendingNext,
+};
+
 enum ConnectField {
     ConnectServer = 0,
     ConnectShare,
@@ -95,6 +107,13 @@ struct BrowserHistoryEntry {
     int listTop;
 };
 
+struct BrowserForwardEntry {
+    char parentPath[256];
+    char childPath[256];
+    int selected;
+    int listTop;
+};
+
 struct HiddenItem {
     int source;
     char server[128];
@@ -121,6 +140,9 @@ struct PlayerState {
     int settingsVisible;
     int swipeSeeking;
     int loopPlayback;
+    int repeatMode;
+    int shufflePlayback;
+    int playbackEnded;
     int autoRotateEnabled;
     float hudAnim;
     double speed;

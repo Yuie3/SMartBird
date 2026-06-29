@@ -15,6 +15,9 @@ enum PlayerHudAction {
     PlayerHudActionSettings,
     PlayerHudActionAutoRotate,
     PlayerHudActionSpeed,
+    PlayerHudActionShuffle,
+    PlayerHudActionPrevious,
+    PlayerHudActionNext,
 };
 
 struct PlayerHudButton {
@@ -32,6 +35,8 @@ struct PlayerHudButton {
 struct PlayerHudLayout {
     PlayerHudButton top[3];
     int topCount;
+    PlayerHudButton center;
+    bool hasCenter;
     PlayerHudButton bottom[8];
     int bottomCount;
 };

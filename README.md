@@ -2,7 +2,7 @@
 
 SMartBird 是 PS Vita 用的 SMB / 本機媒體播放器。它可以瀏覽 SMB 分享與 Vita 本機資料夾，播放影片、檢視圖片，並提供檔案複製與隱藏項目管理。
 
-目前版本：`0.0.5`
+目前版本：`0.0.6`
 
 ## 功能
 
@@ -26,7 +26,7 @@ releases/SMartBird.vpk
 帶版本號的 VPK：
 
 ```text
-releases/SMartBird_v0.0.5.vpk
+releases/SMartBird_v0.0.6.vpk
 ```
 
 把 VPK 安裝到已可執行自製程式的 PS Vita 上即可啟動。
@@ -183,8 +183,8 @@ LIBSMB2_REF=libsmb2-6.2 ./scripts/build-builder-image.sh
 
 ```text
 build/vita/SMartBird.self
-build/vita/SMartBird_v0.0.5.vpk
-releases/SMartBird_v0.0.5.vpk
+build/vita/SMartBird_v0.0.6.vpk
+releases/SMartBird_v0.0.6.vpk
 releases/SMartBird.vpk
 ```
 

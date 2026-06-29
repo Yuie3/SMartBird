@@ -32,54 +32,62 @@ float measureButtonWidth(NVGcontext* vg, int font, const char* key, const char* 
     return (keyBounds[2] - keyBounds[0]) + (labelBounds[2] - labelBounds[0]) + 34.0f;
 }
 
-void addTopButton(PlayerHudLayout* layout, PlayerHudAction action, float x, float y, float w,
+void addTopButton(PlayerHudLayout* layout, PlayerHudAction action, float x, float y, float w, float h,
                   const char* label, bool active) {
     if (!layout || layout->topCount >= static_cast<int>(sizeof(layout->top) / sizeof(layout->top[0]))) return;
-    setButton(&layout->top[layout->topCount++], action, x, y, w, 28.0f, "", label, active, true);
-}
-
-void addBottomButton(NVGcontext* vg, int font, PlayerHudLayout* layout, PlayerHudAction action,
-                     float* x, float y, float maxRight, const char* key, const char* label,
-                     bool active = false, bool clickable = true) {
-    if (!layout || !x || layout->bottomCount >= static_cast<int>(sizeof(layout->bottom) / sizeof(layout->bottom[0]))) return;
-    const float w = measureButtonWidth(vg, font, key, label);
-    if (*x + w > maxRight) return;
-    setButton(&layout->bottom[layout->bottomCount++], action, *x, y - 14.0f, w, 28.0f,
-              key, label, active, clickable);
-    *x += w + 10.0f;
+    setButton(&layout->top[layout->topCount++], action, x, y, w, h, "", label, active, true);
 }
 
 bool contains(const PlayerHudButton& button, float x, float y) {
     return x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h;
 }
 
+bool containsCircleButton(const PlayerHudButton& button, float x, float y) {
+    const float cx = button.x + button.w * 0.5f;
+    const float cy = button.y + button.h * 0.5f;
+    const float r = button.w < button.h ? button.w * 0.5f : button.h * 0.5f;
+    const float dx = x - cx;
+    const float dy = y - cy;
+    return dx * dx + dy * dy <= r * r;
+}
+
+void addBottomIcon(PlayerHudLayout* layout, PlayerHudAction action, float cx, float cy,
+                   const char* label, bool active) {
+    if (!layout || layout->bottomCount >= static_cast<int>(sizeof(layout->bottom) / sizeof(layout->bottom[0]))) return;
+    setButton(&layout->bottom[layout->bottomCount++], action, cx - 22.0f, cy - 22.0f, 44.0f, 44.0f,
+              "", label, active, true);
+}
+
 } // namespace
 
 PlayerHudLayout buildPlayerHudLayout(NVGcontext* vg, int font, const PlayerState& player,
                                      float viewW, float viewH) {
+    (void)vg;
+    (void)font;
     PlayerHudLayout layout = {};
 
-    addTopButton(&layout, PlayerHudActionBack, 0.0f, 0.0f, 92.0f, "", false);
-    addTopButton(&layout, PlayerHudActionLoop, viewW - 250.0f, 16.0f, 86.0f,
-                 t("player.loop"), player.loopPlayback != 0);
+    addTopButton(&layout, PlayerHudActionBack, 0.0f, 0.0f, 72.0f, 58.0f, "", false);
     char speedLine[32];
     std::snprintf(speedLine, sizeof(speedLine), "%.2gx", player.speed > 0.0 ? player.speed : 1.0);
-    addTopButton(&layout, PlayerHudActionSpeed, viewW - 150.0f, 16.0f, 104.0f,
+    addTopButton(&layout, PlayerHudActionSpeed, viewW - 164.0f, 0.0f, 104.0f, 58.0f,
                  speedLine, player.speedSliderVisible != 0);
+    addTopButton(&layout, PlayerHudActionSettings, viewW - 58.0f, 0.0f, 58.0f, 58.0f,
+                 "", player.settingsVisible != 0);
 
-    const float barX = 46.0f;
-    const float rowY = viewH - 34.0f;
-    const float maxRight = viewW - 132.0f;
-
-    float x = barX;
-    addBottomButton(vg, font, &layout, PlayerHudActionPlayPause, &x, rowY, maxRight, "○", t("hint.play"));
-    addBottomButton(vg, font, &layout, PlayerHudActionSettings, &x, rowY, maxRight, "START", t("player.settings"), player.settingsVisible != 0);
-    addBottomButton(vg, font, &layout, PlayerHudActionAutoRotate, &x, rowY, maxRight,
-                    "△", t("player.auto_rotate"), player.autoRotateEnabled != 0);
+    const float controlsY = viewH - 50.0f;
+    const float controlsX = viewW * 0.5f;
+    addBottomIcon(&layout, PlayerHudActionShuffle, controlsX - 96.0f, controlsY, "", player.shufflePlayback != 0);
+    addBottomIcon(&layout, PlayerHudActionPrevious, controlsX - 48.0f, controlsY, "", false);
+    addBottomIcon(&layout, PlayerHudActionPlayPause, controlsX, controlsY, "", false);
+    addBottomIcon(&layout, PlayerHudActionNext, controlsX + 48.0f, controlsY, "", false);
+    addBottomIcon(&layout, PlayerHudActionLoop, controlsX + 96.0f, controlsY, "", player.repeatMode != PlayerRepeatOff);
     return layout;
 }
 
 PlayerHudAction hitPlayerHudButton(const PlayerHudLayout& layout, float x, float y) {
+    if (layout.hasCenter && layout.center.clickable && containsCircleButton(layout.center, x, y)) {
+        return layout.center.action;
+    }
     for (int i = 0; i < layout.topCount; ++i) {
         if (layout.top[i].clickable && contains(layout.top[i], x, y)) return layout.top[i].action;
     }

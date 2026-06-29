@@ -533,16 +533,54 @@ void adjustMpvSpeed(int direction) {
     showPlayerOverlay();
 }
 
+void cycleMpvSpeedPreset() {
+    if (!gPlayer.mpv) return;
+    constexpr double speeds[] = {0.5, 0.75, 1.0, 1.25, 1.5, 2.0};
+    constexpr int speedCount = static_cast<int>(sizeof(speeds) / sizeof(speeds[0]));
+
+    double current = 1.0;
+    lockScan();
+    current = gPlayer.speed > 0.0 ? gPlayer.speed : 1.0;
+    unlockScan();
+
+    int next = 0;
+    for (int i = 0; i < speedCount; ++i) {
+        if (current < speeds[i] - 0.01) {
+            next = i;
+            break;
+        }
+    }
+    setMpvSpeed(speeds[next]);
+    showPlayerOverlay();
+}
+
+const char* repeatModeMessage(int mode) {
+    if (mode == PlayerRepeatAll) return t("player.repeat_all_on");
+    if (mode == PlayerRepeatOne) return t("player.repeat_one_on");
+    return t("player.repeat_off");
+}
+
 void toggleMpvLoop() {
     lockScan();
-    const int enabled = gPlayer.loopPlayback ? 0 : 1;
-    gPlayer.loopPlayback = enabled;
-    copyText(gPlayer.message, sizeof(gPlayer.message), enabled ? t("player.loop_on") : t("player.loop_off"));
+    int mode = gPlayer.repeatMode + 1;
+    if (mode > PlayerRepeatOne) mode = PlayerRepeatOff;
+    gPlayer.repeatMode = mode;
+    gPlayer.loopPlayback = mode == PlayerRepeatOne ? 1 : 0;
+    copyText(gPlayer.message, sizeof(gPlayer.message), repeatModeMessage(mode));
     unlockScan();
 
     if (gPlayer.mpv) {
-        mpv_set_property_string(gPlayer.mpv, "loop-file", enabled ? "inf" : "no");
+        mpv_set_property_string(gPlayer.mpv, "loop-file", mode == PlayerRepeatOne ? "inf" : "no");
     }
+    showPlayerOverlay();
+}
+
+void toggleMpvShuffle() {
+    lockScan();
+    const int enabled = gPlayer.shufflePlayback ? 0 : 1;
+    gPlayer.shufflePlayback = enabled;
+    copyText(gPlayer.message, sizeof(gPlayer.message), enabled ? t("player.shuffle_on") : t("player.shuffle_off"));
+    unlockScan();
     showPlayerOverlay();
 }
 
@@ -807,6 +845,9 @@ void shutdownMpv() {
     gPlayer.autoRotateEnabled = 0;
     gPlayer.hudAnim = 0.0f;
     gPlayer.loopPlayback = 0;
+    gPlayer.repeatMode = PlayerRepeatOff;
+    gPlayer.shufflePlayback = 0;
+    gPlayer.playbackEnded = 0;
     gPlayer.speed = 1.0;
     gPlayer.positionSeconds = 0.0;
     gPlayer.durationSeconds = 0.0;
@@ -870,13 +911,13 @@ void playEntry(const SmbEntry& entry, int source, SceGxmContext* gxmCtx, SceGxmS
     resetAutoRotateDebounce();
     double speed = 1.0;
     mpv_set_property(gPlayer.mpv, "speed", MPV_FORMAT_DOUBLE, &speed);
-    int loopEnabled = 0;
+    int repeatMode = PlayerRepeatOff;
     int autoRotateEnabled = 0;
     lockScan();
-    loopEnabled = gPlayer.loopPlayback;
+    repeatMode = gPlayer.repeatMode;
     autoRotateEnabled = gPlayer.autoRotateEnabled;
     unlockScan();
-    mpv_set_property_string(gPlayer.mpv, "loop-file", loopEnabled ? "inf" : "no");
+    mpv_set_property_string(gPlayer.mpv, "loop-file", repeatMode == PlayerRepeatOne ? "inf" : "no");
     int pauseFlag = 1;
     mpv_set_property(gPlayer.mpv, "pause", MPV_FORMAT_FLAG, &pauseFlag);
 
@@ -898,7 +939,9 @@ void playEntry(const SmbEntry& entry, int source, SceGxmContext* gxmCtx, SceGxmS
     gPlayer.settingsVisible = 0;
     gPlayer.swipeSeeking = 0;
     gPlayer.autoRotateEnabled = autoRotateEnabled;
-    gPlayer.loopPlayback = loopEnabled;
+    gPlayer.repeatMode = repeatMode;
+    gPlayer.loopPlayback = repeatMode == PlayerRepeatOne ? 1 : 0;
+    gPlayer.playbackEnded = 0;
     gPlayer.hudAnim = 1.0f;
     gPlayer.speed = 1.0;
     gPlayer.positionSeconds = 0.0;
@@ -974,7 +1017,10 @@ void pollMpvEvents() {
             copyText(gPlayer.message, sizeof(gPlayer.message),
                      end && end->reason == MPV_END_FILE_REASON_EOF ? t("player.ended") : t("player.stopped"));
             copyText(gPlayer.detail, sizeof(gPlayer.detail), detail);
-            if (end && end->reason == MPV_END_FILE_REASON_EOF && !gPlayer.loopPlayback) {
+            if (end && end->reason == MPV_END_FILE_REASON_EOF && gPlayer.repeatMode != PlayerRepeatOne) {
+                gPlayer.playbackEnded = 1;
+            }
+            if (end && end->reason == MPV_END_FILE_REASON_EOF && gPlayer.repeatMode == PlayerRepeatOff) {
                 gPlayer.hudVisible = 1;
                 gPlayer.overlayFrames = 240;
                 if (gPlayer.hudAnim < 0.02f) gPlayer.hudAnim = 0.02f;

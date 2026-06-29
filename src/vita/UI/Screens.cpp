@@ -33,6 +33,56 @@ void drawAppChrome(NVGcontext* vg) {
     ui::drawAppBackground(vg);
 }
 
+void drawHistorySwipeCue(NVGcontext* vg, int font, float progress, int direction) {
+    if (progress <= 0.01f) return;
+    if (progress > 1.0f) progress = 1.0f;
+    const float eased = progress * progress * (3.0f - 2.0f * progress);
+    const unsigned char alpha = static_cast<unsigned char>(36.0f + eased * 90.0f);
+    const bool forward = direction < 0;
+
+    NVGpaint edge = forward
+        ? nvgLinearGradient(vg, kWidth, 0.0f, kWidth - 180.0f, 0.0f,
+                            nvgRGBA(29, 141, 206, alpha), nvgRGBA(29, 141, 206, 0))
+        : nvgLinearGradient(vg, 0.0f, 0.0f, 180.0f, 0.0f,
+                            nvgRGBA(29, 141, 206, alpha), nvgRGBA(29, 141, 206, 0));
+    nvgBeginPath(vg);
+    nvgRect(vg, forward ? kWidth - 180.0f : 0.0f, 0.0f, 180.0f, kHeight);
+    nvgFillPaint(vg, edge);
+    nvgFill(vg);
+
+    const float cx = forward ? kWidth - 34.0f - eased * 20.0f : 34.0f + eased * 20.0f;
+    const float cy = kHeight * 0.5f;
+    nvgBeginPath(vg);
+    nvgCircle(vg, cx, cy, 28.0f + eased * 4.0f);
+    nvgFillColor(vg, nvgRGBA(3, 42, 84, static_cast<unsigned char>(128.0f + eased * 42.0f)));
+    nvgFill(vg);
+    nvgStrokeWidth(vg, 1.2f);
+    nvgStrokeColor(vg, nvgRGBA(220, 250, 255, static_cast<unsigned char>(90.0f + eased * 80.0f)));
+    nvgStroke(vg);
+
+    nvgStrokeWidth(vg, 4.0f);
+    nvgStrokeColor(vg, nvgRGBA(235, 252, 255, static_cast<unsigned char>(180.0f + eased * 60.0f)));
+    nvgLineCap(vg, NVG_ROUND);
+    nvgLineJoin(vg, NVG_ROUND);
+    nvgBeginPath(vg);
+    if (forward) {
+        nvgMoveTo(vg, cx - 7.0f, cy - 12.0f);
+        nvgLineTo(vg, cx + 6.0f, cy);
+        nvgLineTo(vg, cx - 7.0f, cy + 12.0f);
+    } else {
+        nvgMoveTo(vg, cx + 7.0f, cy - 12.0f);
+        nvgLineTo(vg, cx - 6.0f, cy);
+        nvgLineTo(vg, cx + 7.0f, cy + 12.0f);
+    }
+    nvgStroke(vg);
+
+    nvgFontFaceId(vg, font);
+    nvgFontSize(vg, 15.0f);
+    nvgTextAlign(vg, (forward ? NVG_ALIGN_RIGHT : NVG_ALIGN_LEFT) | NVG_ALIGN_MIDDLE);
+    nvgFillColor(vg, nvgRGBA(220, 244, 252, static_cast<unsigned char>(eased * 210.0f)));
+    nvgText(vg, cx + (forward ? -36.0f : 36.0f), cy, forward ? t("hint.enter") : t("hint.back"), nullptr);
+}
+
 struct ListMotion {
     bool initialized;
     AppMode mode;
@@ -70,6 +120,7 @@ void updateListMotion(ListMotion* motion, AppMode mode, int listTop, int selecte
     const float targetTop = static_cast<float>(listTop);
     const float targetSelected = static_cast<float>(selected);
     if (!motion->initialized || motion->mode != mode || motion->count != count ||
+        gUiSnapListMotionFrame == gUiFrame ||
         std::fabs(motion->visualTop - targetTop) > static_cast<float>(kVisibleEntries) ||
         std::fabs(motion->visualSelected - targetSelected) > static_cast<float>(kVisibleEntries)) {
         motion->initialized = true;
@@ -287,6 +338,16 @@ void renderUi(NVGcontext* vg, int font, const RuntimeStatus& runtime, const Scan
         return;
     }
 
+    float backSwipeProgress = gUiBackSwipeProgress;
+    if (backSwipeProgress < 0.0f) backSwipeProgress = 0.0f;
+    if (backSwipeProgress > 1.0f) backSwipeProgress = 1.0f;
+    const float backSwipeEased = backSwipeProgress * backSwipeProgress * (3.0f - 2.0f * backSwipeProgress);
+    if (backSwipeProgress > 0.01f) {
+        drawHistorySwipeCue(vg, font, backSwipeProgress, gUiBackSwipeDirection);
+        nvgSave(vg);
+        nvgTranslate(vg, 76.0f * backSwipeEased * (gUiBackSwipeDirection < 0 ? -1.0f : 1.0f), 0.0f);
+    }
+
     char shareLine[256];
     if (scan.source == SourceLocal) {
         char localRoot[256];
@@ -354,5 +415,8 @@ void renderUi(NVGcontext* vg, int font, const RuntimeStatus& runtime, const Scan
             {"△", t("hint.rescan")},
         };
         drawFooterHints(vg, font, hints, static_cast<int>(sizeof(hints) / sizeof(hints[0])));
+    }
+    if (backSwipeProgress > 0.01f) {
+        nvgRestore(vg);
     }
 }

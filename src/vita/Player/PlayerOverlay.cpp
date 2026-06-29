@@ -118,22 +118,21 @@ void drawControlCircle(NVGcontext* vg, float cx, float cy, float r, bool strong)
     nvgStroke(vg);
 }
 
-void drawPlayPauseDisc(NVGcontext* vg, float cx, float cy, float r, bool paused) {
+void drawPlayPauseDisc(NVGcontext* vg, float cx, float cy, float r, bool showPlayIcon) {
     nvgBeginPath(vg);
-    if (paused) {
+    if (showPlayIcon) {
         nvgMoveTo(vg, cx - 7.0f, cy - 12.0f);
         nvgLineTo(vg, cx + 13.0f, cy);
         nvgLineTo(vg, cx - 7.0f, cy + 12.0f);
         nvgClosePath(vg);
-        nvgPathWinding(vg, NVG_HOLE);
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, 226));
+        nvgFill(vg);
     } else {
-        nvgRect(vg, cx - 8.0f, cy - 11.0f, 5.5f, 22.0f);
-        nvgPathWinding(vg, NVG_HOLE);
-        nvgRect(vg, cx + 2.5f, cy - 11.0f, 5.5f, 22.0f);
-        nvgPathWinding(vg, NVG_HOLE);
+        nvgRoundedRect(vg, cx - 9.0f, cy - 12.0f, 6.0f, 24.0f, 1.8f);
+        nvgRoundedRect(vg, cx + 3.0f, cy - 12.0f, 6.0f, 24.0f, 1.8f);
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, 226));
+        nvgFill(vg);
     }
-    nvgFillColor(vg, nvgRGBA(255, 255, 255, 210));
-    nvgFill(vg);
 }
 
 void drawTextButton(NVGcontext* vg, int font, const PlayerHudButton& button) {
@@ -198,7 +197,113 @@ void drawHudButton(NVGcontext* vg, int font, const PlayerHudButton& button) {
     nvgFontSize(vg, 14.0f);
     nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
     nvgFillColor(vg, active ? ui::textPrimary() : ui::textSecondary());
-    nvgText(vg, x + w * 0.5f, y + 14.0f, button.label, nullptr);
+    nvgText(vg, x + w * 0.5f, y + button.h * 0.5f, button.label, nullptr);
+}
+
+void drawMenuDots(NVGcontext* vg, const PlayerHudButton& button) {
+    const bool active = button.active || gTouchHudAction == static_cast<int>(button.action);
+    const float cx = button.x + button.w * 0.5f;
+    const float cy = button.y + button.h * 0.5f;
+    const float r = active ? 1.9f : 1.7f;
+    nvgFillColor(vg, active ? ui::textPrimary() : ui::textSecondary());
+    for (int i = -1; i <= 1; ++i) {
+        nvgBeginPath(vg);
+        nvgCircle(vg, cx, cy + i * 6.0f, r);
+        nvgFill(vg);
+    }
+}
+
+void drawTopPlainLabel(NVGcontext* vg, int font, const PlayerHudButton& button) {
+    const bool active = button.active || gTouchHudAction == static_cast<int>(button.action);
+    nvgFontFaceId(vg, font);
+    nvgFontSize(vg, 15.0f);
+    nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+    nvgFillColor(vg, active ? ui::textPrimary() : ui::textSecondary());
+    nvgText(vg, button.x + button.w * 0.5f, button.y + button.h * 0.5f,
+            button.label, nullptr);
+}
+
+void drawBottomIconButton(NVGcontext* vg, const PlayerHudButton& button, const PlayerState& player) {
+    const bool active = button.active || gTouchHudAction == static_cast<int>(button.action);
+    const float cx = button.x + button.w * 0.5f;
+    const float cy = button.y + button.h * 0.5f;
+    const NVGcolor color = active ? ui::textPrimary() : ui::textSecondary();
+
+    nvgSave(vg);
+    nvgStrokeColor(vg, color);
+    nvgFillColor(vg, color);
+    nvgStrokeWidth(vg, active ? 2.4f : 2.0f);
+    nvgLineCap(vg, NVG_ROUND);
+    nvgLineJoin(vg, NVG_ROUND);
+
+    if (button.action == PlayerHudActionShuffle) {
+        nvgBeginPath(vg);
+        nvgMoveTo(vg, cx - 15.0f, cy - 9.0f);
+        nvgBezierTo(vg, cx - 4.0f, cy - 9.0f, cx + 2.0f, cy + 9.0f, cx + 15.0f, cy + 9.0f);
+        nvgStroke(vg);
+        nvgBeginPath(vg);
+        nvgMoveTo(vg, cx - 15.0f, cy + 9.0f);
+        nvgBezierTo(vg, cx - 4.0f, cy + 9.0f, cx + 2.0f, cy - 9.0f, cx + 15.0f, cy - 9.0f);
+        nvgStroke(vg);
+        nvgBeginPath(vg);
+        nvgMoveTo(vg, cx + 10.0f, cy - 14.0f);
+        nvgLineTo(vg, cx + 16.0f, cy - 9.0f);
+        nvgLineTo(vg, cx + 10.0f, cy - 4.0f);
+        nvgMoveTo(vg, cx + 10.0f, cy + 4.0f);
+        nvgLineTo(vg, cx + 16.0f, cy + 9.0f);
+        nvgLineTo(vg, cx + 10.0f, cy + 14.0f);
+        nvgStroke(vg);
+    } else if (button.action == PlayerHudActionPrevious || button.action == PlayerHudActionNext) {
+        const bool next = button.action == PlayerHudActionNext;
+        const float barX = cx + (next ? 13.0f : -13.0f);
+        const float tipX = cx + (next ? 12.0f : -12.0f);
+        const float baseX = cx + (next ? -8.0f : 8.0f);
+        nvgBeginPath(vg);
+        nvgMoveTo(vg, barX, cy - 14.0f);
+        nvgLineTo(vg, barX, cy + 14.0f);
+        nvgStroke(vg);
+        nvgBeginPath(vg);
+        nvgMoveTo(vg, baseX, cy - 13.0f);
+        nvgLineTo(vg, tipX, cy);
+        nvgLineTo(vg, baseX, cy + 13.0f);
+        nvgClosePath(vg);
+        nvgFill(vg);
+    } else if (button.action == PlayerHudActionPlayPause) {
+        if (player.paused || player.loading || !player.hasFrame || player.waitingForValidation) {
+            nvgBeginPath(vg);
+            nvgMoveTo(vg, cx - 7.0f, cy - 14.0f);
+            nvgLineTo(vg, cx + 14.0f, cy);
+            nvgLineTo(vg, cx - 7.0f, cy + 14.0f);
+            nvgClosePath(vg);
+            nvgFill(vg);
+        } else {
+            nvgBeginPath(vg);
+            nvgRoundedRect(vg, cx - 9.0f, cy - 14.0f, 6.0f, 28.0f, 1.5f);
+            nvgRoundedRect(vg, cx + 3.0f, cy - 14.0f, 6.0f, 28.0f, 1.5f);
+            nvgFill(vg);
+        }
+    } else if (button.action == PlayerHudActionLoop) {
+        nvgBeginPath(vg);
+        nvgMoveTo(vg, cx - 15.0f, cy - 8.0f);
+        nvgLineTo(vg, cx + 10.0f, cy - 8.0f);
+        nvgMoveTo(vg, cx + 5.0f, cy - 13.0f);
+        nvgLineTo(vg, cx + 11.0f, cy - 8.0f);
+        nvgLineTo(vg, cx + 5.0f, cy - 3.0f);
+        nvgStroke(vg);
+        nvgBeginPath(vg);
+        nvgMoveTo(vg, cx + 15.0f, cy + 8.0f);
+        nvgLineTo(vg, cx - 10.0f, cy + 8.0f);
+        nvgMoveTo(vg, cx - 5.0f, cy + 3.0f);
+        nvgLineTo(vg, cx - 11.0f, cy + 8.0f);
+        nvgLineTo(vg, cx - 5.0f, cy + 13.0f);
+        nvgStroke(vg);
+        if (player.repeatMode == PlayerRepeatOne) {
+            nvgFontSize(vg, 12.0f);
+            nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+            nvgText(vg, cx, cy + 1.0f, "1", nullptr);
+        }
+    }
+    nvgRestore(vg);
 }
 
 void drawSpeedSlider(NVGcontext* vg, int font, float x, float y, float w, double speed) {
@@ -291,6 +396,12 @@ void drawSettingsBand(NVGcontext* vg, float y, float viewW, float h) {
     nvgFill(vg);
 }
 
+const char* repeatModeLabel(int mode) {
+    if (mode == PlayerRepeatAll) return t("player.repeat_all");
+    if (mode == PlayerRepeatOne) return t("player.repeat_one");
+    return t("player.repeat_off_short");
+}
+
 void drawSettingsPanel(NVGcontext* vg, int font, const PlayerState& player, float viewW) {
     const int rotation = player.rotationDegrees % 360;
     const float viewH = (rotation == 90 || rotation == 270) ? kWidth : kHeight;
@@ -332,9 +443,9 @@ void drawSettingsPanel(NVGcontext* vg, int font, const PlayerState& player, floa
     nvgFillColor(vg, ui::textPrimary());
     nvgText(vg, contentX, loopY + 44.0f, t("player.loop"), nullptr);
     nvgTextAlign(vg, NVG_ALIGN_RIGHT | NVG_ALIGN_MIDDLE);
-    nvgFillColor(vg, player.loopPlayback ? ui::accent() : ui::textMuted());
+    nvgFillColor(vg, player.repeatMode != PlayerRepeatOff ? ui::accent() : ui::textMuted());
     nvgFontSize(vg, 20.0f);
-    nvgText(vg, contentRight, loopY + 29.0f, player.loopPlayback ? "ON" : "OFF", nullptr);
+    nvgText(vg, contentRight, loopY + 29.0f, repeatModeLabel(player.repeatMode), nullptr);
 
     const float speedY = rowTop + rowPitch;
     nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
@@ -438,85 +549,92 @@ void drawPlayerOverlay(NVGcontext* vg, int font, const PlayerState& player, floa
     nvgFillColor(vg, white);
     nvgText(vg, 20.0f, 28.0f, "×", nullptr);
 
-    drawMarqueeText(vg, font, 54.0f, 34.0f, viewW - 314.0f, 19.0f,
+    drawMarqueeText(vg, font, 54.0f, 34.0f, viewW - 250.0f, 19.0f,
                     white, player.fileName[0] ? player.fileName : t("app.title"), true);
 
     char meta[192];
     formatPlayerMeta(player, meta, sizeof(meta));
     if (meta[0]) {
-        drawMarqueeText(vg, font, 54.0f, 60.0f, viewW - 314.0f, 13.0f, ui::textSecondary(), meta, true);
+        drawMarqueeText(vg, font, 54.0f, 60.0f, viewW - 250.0f, 13.0f, ui::textSecondary(), meta, true);
     }
 
     nvgTextAlign(vg, NVG_ALIGN_RIGHT | NVG_ALIGN_MIDDLE);
     nvgFillColor(vg, ui::textSecondary());
     for (int i = 0; i < hud.topCount; ++i) {
         if (hud.top[i].action == PlayerHudActionBack) continue;
-        drawHudButton(vg, font, hud.top[i]);
-    }
-    if (player.speedSliderVisible) {
-        drawSpeedSlider(vg, font, viewW - 284.0f, 50.0f, 238.0f,
-                        player.speed > 0.0 ? player.speed : 1.0);
+        if (hud.top[i].action == PlayerHudActionSettings) {
+            drawMenuDots(vg, hud.top[i]);
+        } else if (hud.top[i].action == PlayerHudActionSpeed) {
+            drawTopPlainLabel(vg, font, hud.top[i]);
+        } else {
+            drawHudButton(vg, font, hud.top[i]);
+        }
     }
     nvgRestore(vg);
 
-    if (player.paused || player.loading || !player.hasFrame || player.waitingForValidation) {
-        nvgSave(vg);
-        nvgGlobalAlpha(vg, eased);
-        const float centerX = viewW * 0.5f;
-        const float centerY = viewH * 0.5f;
-        drawControlCircle(vg, centerX, centerY, 44.0f, true);
-        drawPlayPauseDisc(vg, centerX, centerY, 28.0f, player.paused || player.loading || !player.hasFrame);
-        nvgRestore(vg);
-    }
-
     nvgSave(vg);
     nvgGlobalAlpha(vg, eased);
-    nvgTranslate(vg, 0.0f, 104.0f * (1.0f - eased));
+    nvgTranslate(vg, 0.0f, 82.0f * (1.0f - eased));
 
-    const NVGpaint bottom = nvgLinearGradient(vg, 0.0f, viewH - 152.0f, 0.0f, viewH,
+    const NVGpaint bottom = nvgLinearGradient(vg, 0.0f, viewH - 126.0f, 0.0f, viewH,
                                               nvgRGBA(2, 12, 30, 0), nvgRGBA(2, 12, 30, 226));
     nvgBeginPath(vg);
-    nvgRect(vg, 0.0f, viewH - 152.0f, viewW, 152.0f);
+    nvgRect(vg, 0.0f, viewH - 126.0f, viewW, 126.0f);
     nvgFillPaint(vg, bottom);
     nvgFill(vg);
 
+    double displayPosition = gTouchDraggingBar ? gTouchScrubTarget : player.positionSeconds;
+    if (displayPosition < 0.0) displayPosition = 0.0;
+    if (player.durationSeconds > 0.0 && displayPosition > player.durationSeconds) {
+        displayPosition = player.durationSeconds;
+    }
+
     char pos[16], dur[16];
-    formatTime(player.positionSeconds, pos, sizeof(pos));
+    formatTime(displayPosition, pos, sizeof(pos));
     formatTime(player.durationSeconds, dur, sizeof(dur));
 
-    const float barY = viewH - 82.0f;
+    const float barY = viewH - 94.0f;
+    const float timeY = barY - 22.0f;
     const float barX = 46.0f;
     const float barW = viewW - 92.0f;
+    const bool expandedBar = gTouchDraggingBar;
+    const float trackH = expandedBar ? 10.0f : 5.0f;
+    const float thumbR = trackH * 0.5f;
     nvgFontFaceId(vg, font);
     nvgFontSize(vg, 16.0f);
     nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
     nvgFillColor(vg, white);
-    nvgText(vg, barX, barY - 22.0f, pos, nullptr);
+    nvgText(vg, barX, timeY, pos, nullptr);
     nvgTextAlign(vg, NVG_ALIGN_RIGHT | NVG_ALIGN_MIDDLE);
     nvgFillColor(vg, ui::textSecondary());
-    nvgText(vg, barX + barW, barY - 22.0f, dur, nullptr);
+    nvgText(vg, barX + barW, timeY, dur, nullptr);
 
     float frac = 0.0f;
     if (player.durationSeconds > 0.0) {
-        frac = static_cast<float>(player.positionSeconds / player.durationSeconds);
+        frac = static_cast<float>(displayPosition / player.durationSeconds);
         frac = clampFloat(frac, 0.0f, 1.0f);
     }
 
     nvgBeginPath(vg);
-    nvgRoundedRect(vg, barX, barY - 3.0f, barW, 6.0f, 3.0f);
-    nvgFillColor(vg, nvgRGBA(255, 255, 255, 64));
+    nvgRoundedRect(vg, barX, barY - trackH * 0.5f, barW, trackH, trackH * 0.5f);
+    nvgFillColor(vg, nvgRGBA(255, 255, 255, expandedBar ? 92 : 64));
     nvgFill(vg);
     nvgBeginPath(vg);
-    nvgRoundedRect(vg, barX, barY - 3.0f, barW * frac, 6.0f, 3.0f);
+    nvgRoundedRect(vg, barX, barY - trackH * 0.5f, barW * frac, trackH, trackH * 0.5f);
     nvgFillColor(vg, ui::accent());
     nvgFill(vg);
     nvgBeginPath(vg);
-    nvgCircle(vg, barX + barW * frac, barY, 7.0f);
+    nvgCircle(vg, barX + barW * frac, barY, thumbR);
     nvgFillColor(vg, ui::accent());
     nvgFill(vg);
+    if (expandedBar) {
+        nvgStrokeWidth(vg, 2.0f);
+        nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 180));
+        nvgStroke(vg);
+    }
 
     for (int i = 0; i < hud.bottomCount; ++i) {
-        drawTextButton(vg, font, hud.bottom[i]);
+        drawBottomIconButton(vg, hud.bottom[i], player);
     }
     nvgRestore(vg);
 

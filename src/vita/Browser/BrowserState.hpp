@@ -11,5 +11,8 @@ bool currentPathIsRoot();
 bool popBrowserFocus(int* selected, int* listTop);
 void enterDirectory(const char* name, int selected, int listTop);
 bool goParentDirectory();
+bool goParentDirectoryAndRememberForward(int selected, int listTop);
+bool goForwardDirectory(int* selected, int* listTop);
+bool hasForwardDirectory();
 void buildSmbFilePath(const char* fileName, char* out, size_t outSize);
 void buildLocalFilePath(const char* fileName, char* out, size_t outSize);
